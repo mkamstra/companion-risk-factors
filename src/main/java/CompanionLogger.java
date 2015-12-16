@@ -7,9 +7,10 @@ public class CompanionLogger {
   private static FileHandler fileHTML;
   private static Formatter formatterHTML;
 
-  public static void setup() throws IOException {
+  public static void setup(String loggerName) throws IOException {
     // get the global logger to configure it
-    Logger logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+    //Logger logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+    Logger logger = Logger.getLogger(loggerName);
 
     // suppress the logging output to the console
     Logger rootLogger = Logger.getLogger("");
@@ -19,8 +20,8 @@ public class CompanionLogger {
     }
 
     logger.setLevel(Level.INFO);
-    fileTxt = new FileHandler("Logging.txt");
-    fileHTML = new FileHandler("Logging.html");
+    fileTxt = new FileHandler("Logging" + loggerName + ".txt");
+    fileHTML = new FileHandler("Logging" + loggerName + ".html");
 
     // create a TXT formatter
     formatterTxt = new SimpleFormatter();

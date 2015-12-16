@@ -175,6 +175,7 @@ public class SimpleApp {
     }
 
     // Traffic speed
+    if (true)
     {
       System.out.println("Downloading traffic speed");
       String trafficFileName = "trafficspeed.gz";

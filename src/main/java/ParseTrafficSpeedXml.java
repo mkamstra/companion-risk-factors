@@ -10,11 +10,12 @@ import java.util.logging.*;
 
 
 public class ParseTrafficSpeedXml implements Function<String, List<SiteMeasurement>> {
-	private final static Logger LOGGER = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+	//private final static Logger LOGGER = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+	private final static Logger LOGGER = Logger.getLogger(ParseTrafficSpeedXml.class.getName());
 
 	public ParseTrafficSpeedXml() {
 		try {
-			CompanionLogger.setup();
+			CompanionLogger.setup(ParseTrafficSpeedXml.class.getName());
 			LOGGER.setLevel(Level.FINEST);
 		} catch (IOException ex) {
 			ex.printStackTrace();
@@ -32,6 +33,9 @@ public class ParseTrafficSpeedXml implements Function<String, List<SiteMeasureme
       is.setCharacterStream(new StringReader(pXmlString));
       Document doc = db.parse(is);
       doc.getDocumentElement().normalize();
+
+      LOGGER.info("Root element :" + doc.getDocumentElement().getNodeName());
+
       NodeList nodes = doc.getElementsByTagName("payloadPublication");
       // Normally only one element
       if (nodes.getLength() > 1) {
@@ -41,7 +45,7 @@ public class ParseTrafficSpeedXml implements Function<String, List<SiteMeasureme
 
         NodeList publicationTime = payloadPublicationElement.getElementsByTagName("publicationTime");
         Element line = (Element) publicationTime.item(0);
-        LOGGER.info("Publication time: " + getCharacterDataFromElement(line));
+        LOGGER.info("Publication time: " + XmlUtilities.getCharacterDataFromElement(line));
 
         NodeList siteMeasurementNodes = payloadPublicationElement.getElementsByTagName("siteMeasurements");
         LOGGER.info("Number of site measurements: " + siteMeasurementNodes.getLength());
@@ -55,7 +59,7 @@ public class ParseTrafficSpeedXml implements Function<String, List<SiteMeasureme
           } else if (siteReferenceNodes.getLength() < 1) {
             LOGGER.severe("  siteMeasurements " + i + " has no node measurementSiteReference");
           } else {
-            String siteReferenceString = getCharacterDataFromElement((Element) siteReferenceNodes.item(0));
+            String siteReferenceString = XmlUtilities.getCharacterDataFromElement((Element) siteReferenceNodes.item(0));
             if (i < maxPrintElements)
             	LOGGER.finest("    Measurement site reference: " + siteReferenceString);
 
@@ -65,7 +69,7 @@ public class ParseTrafficSpeedXml implements Function<String, List<SiteMeasureme
             } else if (timeDefaultNodes.getLength() < 1) {
               LOGGER.severe("  siteMeasurements " + i + " has no node measurementTimeDefault");
             } else {
-              String timeDefault = getCharacterDataFromElement((Element) timeDefaultNodes.item(0));
+              String timeDefault = XmlUtilities.getCharacterDataFromElement((Element) timeDefaultNodes.item(0));
             	if (i < maxPrintElements)
               	LOGGER.finest("    Measurement time default: " + timeDefault);
 
@@ -81,7 +85,7 @@ public class ParseTrafficSpeedXml implements Function<String, List<SiteMeasureme
                 	continue;
 
 		            if (i < maxPrintElements)
-    	            LOGGER.finest("      Measured value: " + getCharacterDataFromElement(measuredValue));
+    	            LOGGER.finest("      Measured value: " + XmlUtilities.getCharacterDataFromElement(measuredValue));
 
                 String mvIndexString = measuredValue.getAttribute("index");
                 int mvIndex = -1;
@@ -99,7 +103,7 @@ public class ParseTrafficSpeedXml implements Function<String, List<SiteMeasureme
                   if (basicDataNodes.getLength() >= 1) {
                     Element basicData = (Element) basicDataNodes.item(0);
 				            if (i < maxPrintElements)
-        	            LOGGER.finest("        Measured value basic data: " + getCharacterDataFromElement(basicData));
+        	            LOGGER.finest("        Measured value basic data: " + XmlUtilities.getCharacterDataFromElement(basicData));
 
                     String type = basicData.getAttribute("xsi:type");
 
@@ -109,7 +113,7 @@ public class ParseTrafficSpeedXml implements Function<String, List<SiteMeasureme
                       NodeList vehicleFlowRateNodes = vehicleFlow.getElementsByTagName("vehicleFlowRate");
                       if (vehicleFlowRateNodes.getLength() >= 1) {
                         Element vehicleFlowRate = (Element) vehicleFlowRateNodes.item(0);
-                        String flowRateString = getCharacterDataFromElement(vehicleFlowRate);
+                        String flowRateString = XmlUtilities.getCharacterDataFromElement(vehicleFlowRate);
 						            if (i < maxPrintElements)
             	            LOGGER.finest("          Flow rate: " + flowRateString);
 
@@ -129,7 +133,7 @@ public class ParseTrafficSpeedXml implements Function<String, List<SiteMeasureme
                         NodeList averageVehicleSpeedNodes = averageVehicleSpeed.getElementsByTagName("speed");
                         if (averageVehicleSpeedNodes.getLength() >= 1) {
                           Element speedElement = (Element) averageVehicleSpeedNodes.item(0);
-                          String speedString = getCharacterDataFromElement(speedElement);
+                          String speedString = XmlUtilities.getCharacterDataFromElement(speedElement);
 							            if (i < maxPrintElements)
               	         		LOGGER.finest("          Speed: " + speedString);
 
@@ -166,32 +170,5 @@ public class ParseTrafficSpeedXml implements Function<String, List<SiteMeasureme
     }
     return siteMeasurements;
   }	
-
-
-  /**
-   * A method to get the contents of an element
-   */
-  private String getCharacterDataFromElement(Element e) {
-    Node child = e.getFirstChild();
-    if (child instanceof CharacterData) {
-      CharacterData cd = (CharacterData) child;
-      return cd.getData();
-    }
-    // If this part of the code is reached, then check for attributes instead
-    String attributeListString = "";
-    NamedNodeMap attributes = e.getAttributes();
-    // System.out.println("Number of attributes: " + attributes.getLength());
-    // System.out.println(e.toString());
-    for (int i = 0; i < attributes.getLength(); i++) {
-      Attr attr = (Attr) attributes.item(i);
-      String attributeString = attr.getNodeName() + ":" + attr.getNodeValue();
-      attributeListString += attributeString + ", ";
-    }
-    if (attributeListString.length() > 0) {
-      return attributeListString.substring(0, attributeListString.length() - 2); // Remove last comma
-    }
-    return "?";
-  }
-
 
 }
