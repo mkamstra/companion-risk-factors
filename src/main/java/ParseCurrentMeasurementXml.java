@@ -7,6 +7,8 @@ import org.w3c.dom.*;
 import org.xml.sax.InputSource;
 import java.io.*;
 import java.util.logging.*;
+import java.sql.*;
+import java.util.Properties;
 
 
 public class ParseCurrentMeasurementXml implements Function<String, List<SiteMeasurement>> {
@@ -17,10 +19,43 @@ public class ParseCurrentMeasurementXml implements Function<String, List<SiteMea
 		try {
 			CompanionLogger.setup(ParseCurrentMeasurementXml.class.getName());
 			LOGGER.setLevel(Level.FINEST);
+      Class.forName("org.postgresql.Driver");
+      //String url = "jdbc:postgresql://localhost/companion";
+      Properties props = new Properties();
+      props.setProperty("user","snt");
+      props.setProperty("password","snt");
+      props.setProperty("ssl","true");
+      //Connection conn = DriverManager.getConnection(url, props);
+      String url = "jdbc:postgresql://localhost/companion?user=snt&password=snt&ssl=true&sslfactory=org.postgresql.ssl.NonValidatingFactory";
+      Connection conn = DriverManager.getConnection(url);
+      Statement st = conn.createStatement();
+      ResultSet rs = st.executeQuery("SELECT * FROM measurementsite");
+      while (rs.next())
+      {
+         System.out.println(rs.getInt(1));
+         System.out.println(rs.getString(2));
+         System.out.println(rs.getString(3));
+         System.out.println(rs.getInt(4));
+         System.out.println(rs.getString(5));
+         System.out.println(rs.getString(6));
+         System.out.println(rs.getInt(7));
+         System.out.println(rs.getString(8));
+         System.out.println(rs.getString(9));
+         System.out.println(rs.getInt(10));
+      } 
+      rs.close();
+      st.close(); 
+      conn.close();
 		} catch (IOException ex) {
 			ex.printStackTrace();
 			throw new RuntimeException("Problem creating log files");
-		}
+		} catch (ClassNotFoundException ex) {
+      ex.printStackTrace();
+      throw new RuntimeException("Problem loading the Postgres JDBC driver");
+    } catch (SQLException ex) {
+      ex.printStackTrace();
+      throw new RuntimeException("Problem connecting to COMPANION database");
+    }
 	}
 
   public List<SiteMeasurement> call(String pXmlString) {

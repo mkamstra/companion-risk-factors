@@ -12,6 +12,16 @@ import java.util.regex.Pattern;
 public class SimpleApp {
   private static final Pattern SPACE = Pattern.compile(" ");
 
+  /**
+   * Run this program as follows: 
+   * 
+   * /home/osboxes/Tools/spark-1.5.1/bin/spark-submit --driver-memory 2g --class "SimpleApp" 
+   *     --jars /home/osboxes/.m2/repository/org/postgresql/postgresql/9.4-1206-jdbc42/postgresql-9.4-1206-jdbc42.jar 
+   *     --master local[*] target/CompanionWeatherTraffic-0.1.jar
+   *
+   * Note the --jars to indicate the additional jars that need to be loaded 
+   * The driver-memory can be set to a larger value than the default 1g to avoid Java heap space problems
+   */
   public static void main(String[] args) {
     String logFile = "/home/osboxes/Tools/spark-1.5.1/README.md"; // Just an arbitrary file 
     /**
