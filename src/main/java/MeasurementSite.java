@@ -39,10 +39,12 @@ public class MeasurementSite {
 
 	public void addCoordinateToLocation1(double pLatitude, double pLongitude) {
 		String locationString = "(" + pLatitude + ", " + pLongitude + ")";
+		String commaString = ", ";
 		if (location1.length() == 0) {
 			location1 = "()";
+			commaString = "";
 		}
-		location1 = location1.substring(0, location1.length() - 1) + locationString + location1.substring(location1.length() - 1);
+		location1 = location1.substring(0, location1.length() - 1) + commaString + locationString + location1.substring(location1.length() - 1);
  	}
 
 	public String getLocation1() {
@@ -71,10 +73,12 @@ public class MeasurementSite {
 
 	public void addCoordinateToLocation2(double pLatitude, double pLongitude) {
 		String locationString = "(" + pLatitude + ", " + pLongitude + ")";
+		String commaString = ", ";
 		if (location2.length() == 0) {
 			location2 = "()";
+			commaString = "";
 		}
-		location2 = location2.substring(0, location2.length() - 1) + locationString + location2.substring(location2.length() - 1);
+		location2 = location2.substring(0, location2.length() - 1) + commaString + locationString + location2.substring(location2.length() - 1);
  	}
 
 	public String getLocation2() {

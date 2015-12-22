@@ -100,21 +100,19 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
     Statement st = conn.createStatement();
     // Check first if measurement site already exists in db
     ResultSet rs = st.executeQuery(selectSql);
-    LOGGER.finest("Number of records in measurementsite table with id " + ms.getNdwid() +  " = " + rs.getFetchSize());
-    if (rs.getFetchSize() == 0) {
+    if (!rs.next()) {
       // Does not exist, so add to database
       String selectMaxSql = "SELECT max(id) FROM measurementsite";
       LOGGER.finest("SQL statement to get max id: " + selectMaxSql);
-      Statement st2 = conn.createStatement();
       // Check first if measurement site already exists in db
-      ResultSet rs2 = st2.executeQuery(selectMaxSql);
+      rs = st.executeQuery(selectMaxSql);
       int maxId = 1;
-      if (rs2.getFetchSize() > 0) {
-        rs2.first();
-        maxId = rs.getInt(1) + 1;
+      while (rs.next()) {
+        int maxDbId = rs.getInt(1);
+        LOGGER.finest("Max id in measurementsite table: " + maxDbId);
+        maxId = maxDbId + 1;
+        break;
       }
-      rs2.close();
-      st2.close();
       String carriageWay1 = "NULL";
       if (ms.getCarriageway1() != null) {
         carriageWay1 = "'" + ms.getCarriageway1() + "'";
@@ -136,7 +134,7 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
       LOGGER.finest("Row with NDW id " + ms.getNdwid() + " exists already");
     }
     rs.close();
-    st.close(); 
+    st.close();
   }
 
   public List<MeasurementSite> call(String pXmlString) {
@@ -172,9 +170,9 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
       closeConnection();
     } catch (SQLException ex) {
       ex.printStackTrace();
-      LOGGER.severe("Something went wrong trying to add measurements to the database");
+      LOGGER.severe("Something went wrong trying to add measurements to the database; " + ex.getMessage());
     } catch (Exception ex) {
-      LOGGER.severe("Something went wrong trying to parse the XML file extracted from the downloaded archive");
+      LOGGER.severe("Something went wrong trying to parse the XML file extracted from the downloaded archive; " + ex.getMessage());
       ex.printStackTrace();
     }
     return measurementSites;
