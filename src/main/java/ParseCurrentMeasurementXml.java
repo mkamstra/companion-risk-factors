@@ -125,7 +125,11 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
       if (ms.getLocation2() != null) {
         location2 = "'" + ms.getLocation2() + "'";
       }
-      String insertSql = "INSERT INTO measurementsite VALUES(" + maxId +  ", '" + ms.getNdwid() + "', '" + ms.getName() + "', " + ms.getNdwtype() + ", '" + ms.getLocation1() + "', " + 
+      String ndwId = ms.getNdwid();
+      ndwId = ndwId.replaceAll("'", "_");
+      String name = ms.getName();
+      name = name.replaceAll("'", "_");
+      String insertSql = "INSERT INTO measurementsite VALUES(" + maxId +  ", '" + ndwId + "', '" + name + "', " + ms.getNdwtype() + ", '" + ms.getLocation1() + "', " + 
         carriageWay1 + ", " + ms.getLengthaffected1() + ", "  + location2 + ", " + carriageWay2 + ", " + ms.getLengthaffected2() + ")";
       LOGGER.finest(insertSql);
       int rowsAdded = st.executeUpdate(insertSql);
@@ -246,11 +250,11 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
     ms.setNdwid(ndwId);    
 
     List<Element> msrChildren = XmlUtilities.getChildren(msrElt);
-    LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;#Children: " + msrChildren.size());
+    //LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;#Children: " + msrChildren.size());
     NodeList measurementSiteRecordVersionTimeList = msrElt.getElementsByTagName("measurementSiteRecordVersionTime");
     if (measurementSiteRecordVersionTimeList.getLength() > 0) {
       Element measurementSiteRecordVersionTime = (Element) measurementSiteRecordVersionTimeList.item(0);
-      LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Measurement site record version time: " + XmlUtilities.getCharacterDataFromElement(measurementSiteRecordVersionTime));
+      //LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Measurement site record version time: " + XmlUtilities.getCharacterDataFromElement(measurementSiteRecordVersionTime));
     }
 
     NodeList measurementSiteNameList = msrElt.getElementsByTagName("measurementSiteName");
@@ -263,7 +267,7 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
         if (measurementSiteNameValuesValueList.getLength() > 0) {
           Element measurementSiteNameValuesValue = (Element) measurementSiteNameValuesValueList.item(0);
           String name = XmlUtilities.getCharacterDataFromElement(measurementSiteNameValuesValue);
-          LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Measurement site name: " + name);
+          //LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Measurement site name: " + name);
           ms.setName(name);
         }
       }
@@ -277,7 +281,7 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
         int mslTypeInt = mNdwTypes.get(mslType);
         ms.setNdwtype(mslTypeInt);
       }
-      LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Measurement site location type: " + mslType);
+      //LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Measurement site location type: " + mslType);
       List<String> knownMslTags = new ArrayList<String>();
       knownMslTags.add("locationContainedInItinerary");
       knownMslTags.add("locationForDisplay");
@@ -340,7 +344,7 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
         ex.printStackTrace();
         LOGGER.severe("Latitude and longitude not properly formed as numeric values; " + ex.getMessage());
       }
-      LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Location for display (lat, lon) = (" + latitudeString + ", " + longitudeString + ")");
+      //LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Location for display (lat, lon) = (" + latitudeString + ", " + longitudeString + ")");
     }
   }
 
@@ -374,7 +378,7 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
             ms.setCarriageway1(carriageWayString);
             carriageWayString = "carriage way : " + XmlUtilities.getCharacterDataFromElement(carriageWay);
           }
-          LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;" + carriageWayString + ", " + lengthAffectedString);
+          //LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;" + carriageWayString + ", " + lengthAffectedString);
         }
       } else if (!isContainedInList(knownSpdTags, supplementaryPositionalDescriptionChildTagName)) {
         LOGGER.info("New element under supplementary positional description in location: " + supplementaryPositionalDescriptionChildTagName);
@@ -436,7 +440,7 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
       }
     }
     endCoordinateString += ")";
-    LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Coordinates : " + startCoordinateString + ", " + endCoordinateString);
+    //LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Coordinates : " + startCoordinateString + ", " + endCoordinateString);
   }
 
   private boolean isContainedInList(List<String> valueList, String searchString) {
