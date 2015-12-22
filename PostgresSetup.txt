@@ -1,0 +1,10 @@
+Instructions on: http://www.unixmen.com/install-postgresql-9-4-and-phppgadmin-on-ubuntu-15-10/
+
+Postgres:
+
+user: postgres
+pw: postgres
+
+user: snt
+pw: snt
+

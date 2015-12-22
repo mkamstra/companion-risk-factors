@@ -113,7 +113,7 @@ public class SimpleApp {
     System.out.println("Gzipped files will be downloaded to: " + rootDir);
 
     // Current measurements
-    {
+    if (true) {
       System.out.println("Downloading current measurements containing the measurement locations");
       String measurementFileName = "measurement_current.gz";
       String measurementZipUrl = ftpUrl + measurementFileName;
@@ -187,7 +187,7 @@ public class SimpleApp {
     }
 
     // Traffic speed
-    if (false)
+    if (true)
     {
       System.out.println("Downloading traffic speed");
       String trafficFileName = "trafficspeed.gz";
@@ -214,14 +214,14 @@ public class SimpleApp {
       // Call the ParseTrafficSpeedXml class which is defined in another class to parse the traffic speed data
       if (gzDataList.size() == 1) {
         JavaRDD<List<SiteMeasurement>> siteMeasurements = gzData.map(new ParseTrafficSpeedXml()); // Lazy, i.e. not executed before really needed
-        try {
-          System.out.println("Putting app to sleep for 10 seconds to see xml parsing not started yet");
-          Thread.sleep(10000);
-        } catch (InterruptedException ex) {
-          System.out.println("Something went wrong putting the app to sleep for 10 seconds");
-          ex.printStackTrace();
-          Thread.currentThread().interrupt();
-        }
+        // try {
+        //   System.out.println("Putting app to sleep for 10 seconds to see xml parsing not started yet");
+        //   Thread.sleep(10000);
+        // } catch (InterruptedException ex) {
+        //   System.out.println("Something went wrong putting the app to sleep for 10 seconds");
+        //   ex.printStackTrace();
+        //   Thread.currentThread().interrupt();
+        // }
         System.out.println("Starting to parse traffic speed xml now");
 
         // int nrOfRecords = siteMeasurements.reduce(new CountXmlRecords());

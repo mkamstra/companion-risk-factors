@@ -1,7 +1,6 @@
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.*;
-import java.util.List;
-import java.util.ArrayList;
+import java.util.*;
 import javax.xml.parsers.*;
 import org.w3c.dom.*;
 import org.xml.sax.InputSource;
@@ -12,11 +11,15 @@ import java.util.logging.*;
 public class ParseTrafficSpeedXml implements Function<String, List<SiteMeasurement>> {
 	//private final static Logger LOGGER = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
 	private final static Logger LOGGER = Logger.getLogger(ParseTrafficSpeedXml.class.getName());
+  private DatabaseManager mDbMgr = null;
+  private Map<String, Integer> mMeasurementSiteIds = new HashMap<String,Integer>();
 
 	public ParseTrafficSpeedXml() {
 		try {
 			CompanionLogger.setup(ParseTrafficSpeedXml.class.getName());
-			LOGGER.setLevel(Level.FINEST);
+			LOGGER.setLevel(Level.INFO);
+      mDbMgr = DatabaseManager.getInstance();
+      mMeasurementSiteIds = mDbMgr.getAllMeasurementSiteIdsFromDb();
 		} catch (IOException ex) {
 			ex.printStackTrace();
 			throw new RuntimeException("Problem creating log files");
@@ -49,50 +52,54 @@ public class ParseTrafficSpeedXml implements Function<String, List<SiteMeasureme
 
         NodeList siteMeasurementNodes = payloadPublicationElement.getElementsByTagName("siteMeasurements");
         LOGGER.info("Number of site measurements: " + siteMeasurementNodes.getLength());
-        int maxPrintElements = 20;
         for (int i = 0; i < siteMeasurementNodes.getLength(); i++) {
           Element siteMeasurementElement = (Element) siteMeasurementNodes.item(i);
           // LOGGER.info("  Measurement "  + i);
           NodeList siteReferenceNodes = siteMeasurementElement.getElementsByTagName("measurementSiteReference");
           if (siteReferenceNodes.getLength() > 1) {
-            LOGGER.severe("  siteMeasurements " + i + " has more than one node measurementSiteReference");
+            LOGGER.severe("&nbsp;&nbsp;siteMeasurements " + i + " has more than one node measurementSiteReference");
           } else if (siteReferenceNodes.getLength() < 1) {
-            LOGGER.severe("  siteMeasurements " + i + " has no node measurementSiteReference");
+            LOGGER.severe("&nbsp;siteMeasurements " + i + " has no node measurementSiteReference");
           } else {
-            String siteReferenceString = XmlUtilities.getCharacterDataFromElement((Element) siteReferenceNodes.item(0));
-            if (i < maxPrintElements)
-            	LOGGER.finest("    Measurement site reference: " + siteReferenceString);
+          	Element siteReferenceElement = (Element) siteReferenceNodes.item(0);
+          	String siteReferenceIdString = siteReferenceElement.getAttribute("id");
+          	int siteReferenceDbId = -1;
+          	if (mMeasurementSiteIds.containsKey(siteReferenceIdString)) {
+          		siteReferenceDbId = mMeasurementSiteIds.get(siteReferenceIdString);
+          	}
+          	if (siteReferenceDbId >= 0) {
+          		LOGGER.finest("&nbsp;&nbsp;Measurement site reference id: " + siteReferenceIdString + ", db id: " + siteReferenceDbId);
+          	} else {
+          		LOGGER.severe("&nbsp;&nbsp;Measurement site reference id: " + siteReferenceIdString + " not found in database");
+          	}
 
             NodeList timeDefaultNodes = siteMeasurementElement.getElementsByTagName("measurementTimeDefault");
             if (timeDefaultNodes.getLength() > 1) {
-              LOGGER.severe("  siteMeasurements " + i + " has more than one node measurementTimeDefault");
+              LOGGER.severe("&nbsp;&nbsp;siteMeasurements " + i + " has more than one node measurementTimeDefault");
             } else if (timeDefaultNodes.getLength() < 1) {
-              LOGGER.severe("  siteMeasurements " + i + " has no node measurementTimeDefault");
+              LOGGER.severe("&nbsp;&nbsp;siteMeasurements " + i + " has no node measurementTimeDefault");
             } else {
               String timeDefault = XmlUtilities.getCharacterDataFromElement((Element) timeDefaultNodes.item(0));
-            	if (i < maxPrintElements)
-              	LOGGER.finest("    Measurement time default: " + timeDefault);
+            	LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Measurement time default: " + timeDefault);
 
-              SiteMeasurement sm = new SiteMeasurement(siteReferenceString, timeDefault);
+              SiteMeasurement sm = new SiteMeasurement(siteReferenceIdString, timeDefault);
 
               NodeList measuredValuesNodes = siteMeasurementElement.getElementsByTagName("measuredValue");
-	            if (i < maxPrintElements)
-  	            LOGGER.finest("    Number of measured values: " + measuredValuesNodes.getLength());
+	            LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Number of measured values: " + measuredValuesNodes.getLength());
 
               for (int j= 0 ; j < measuredValuesNodes.getLength(); j++) {
                 Element measuredValue = (Element) measuredValuesNodes.item(j);
                 if (measuredValue.getParentNode() != siteMeasurementElement) 
                 	continue;
 
-		            if (i < maxPrintElements)
-    	            LOGGER.finest("      Measured value: " + XmlUtilities.getCharacterDataFromElement(measuredValue));
+  	            LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Measured value: " + XmlUtilities.getCharacterDataFromElement(measuredValue));
 
                 String mvIndexString = measuredValue.getAttribute("index");
                 int mvIndex = -1;
                 try {
                   mvIndex = Integer.parseInt(mvIndexString);
                 } catch (Exception ex) {
-                  LOGGER.severe("Index not formatted as integer: " + mvIndexString);
+                  LOGGER.severe("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Index not formatted as integer: " + mvIndexString);
                   ex.printStackTrace();
                 }
 
@@ -102,8 +109,7 @@ public class ParseTrafficSpeedXml implements Function<String, List<SiteMeasureme
                   NodeList basicDataNodes = nestedMeasuredValue.getElementsByTagName("basicData");
                   if (basicDataNodes.getLength() >= 1) {
                     Element basicData = (Element) basicDataNodes.item(0);
-				            if (i < maxPrintElements)
-        	            LOGGER.finest("        Measured value basic data: " + XmlUtilities.getCharacterDataFromElement(basicData));
+      	            LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Measured value basic data: " + XmlUtilities.getCharacterDataFromElement(basicData));
 
                     String type = basicData.getAttribute("xsi:type");
 
@@ -114,14 +120,13 @@ public class ParseTrafficSpeedXml implements Function<String, List<SiteMeasureme
                       if (vehicleFlowRateNodes.getLength() >= 1) {
                         Element vehicleFlowRate = (Element) vehicleFlowRateNodes.item(0);
                         String flowRateString = XmlUtilities.getCharacterDataFromElement(vehicleFlowRate);
-						            if (i < maxPrintElements)
-            	            LOGGER.finest("          Flow rate: " + flowRateString);
+          	            LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Flow rate: " + flowRateString);
 
                         double flowRate = -1.0;
                         try {
                         	flowRate = Double.parseDouble(flowRateString);
                         } catch (Exception ex) {
-                        	LOGGER.severe("Flow rate not formatted as a double: " + flowRate);
+                        	LOGGER.severe("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Flow rate not formatted as a double: " + flowRate);
                         	ex.printStackTrace();
                         }
                         sm.addMeasuredValue(mvIndex, type, flowRate);
@@ -134,20 +139,19 @@ public class ParseTrafficSpeedXml implements Function<String, List<SiteMeasureme
                         if (averageVehicleSpeedNodes.getLength() >= 1) {
                           Element speedElement = (Element) averageVehicleSpeedNodes.item(0);
                           String speedString = XmlUtilities.getCharacterDataFromElement(speedElement);
-							            if (i < maxPrintElements)
-              	         		LOGGER.finest("          Speed: " + speedString);
+              	         		LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Speed: " + speedString);
 
 	                       	double speed = -1.0;
 	                      	try {
 	                      		speed = Double.parseDouble(speedString);
 	                      	} catch (Exception ex) {
-	                      		LOGGER.severe("Speed not formatted as a double: " + speedString);
+	                      		LOGGER.severe("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Speed not formatted as a double: " + speedString);
 	                      		ex.printStackTrace();
 	                      	}
                           sm.addMeasuredValue(mvIndex, type, speed);
                         }
                       } else {
-                        LOGGER.severe("        No vehicle flow data or average vehicle speed");
+                        LOGGER.severe("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;No vehicle flow data or average vehicle speed");
                       }
                     }
                   }

@@ -18,128 +18,19 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
    * sites into the database the integer code is needed instead of the string. 
    */
   private Map<String, Integer> mNdwTypes = new HashMap<String, Integer>();
-
-  private static Connection conn = null;
+  private DatabaseManager mDbMgr = null;
 
 	public ParseCurrentMeasurementXml() {
 		try {
 			CompanionLogger.setup(ParseCurrentMeasurementXml.class.getName());
-			LOGGER.setLevel(Level.FINEST);
-
-      getConnection();
-      Statement st = conn.createStatement();
-      ResultSet rs = st.executeQuery("SELECT * FROM measurementsitetype");
-      while (rs.next())
-      {
-        int id = rs.getInt("id");
-        String ndwType = rs.getString("ndwtype");
-        mNdwTypes.put(ndwType, id);
-      } 
-      rs.close();
-      st.close(); 
-      closeConnection();
+			LOGGER.setLevel(Level.INFO);
+      mDbMgr = DatabaseManager.getInstance();
+      mNdwTypes = mDbMgr.getNdwTypes();
 		} catch (IOException ex) {
 			ex.printStackTrace();
-			throw new RuntimeException("Problem creating log files");
-    } catch (SQLException ex) {
-      ex.printStackTrace();
-      throw new RuntimeException("Problem connecting to COMPANION database");
+			throw new RuntimeException("Problem creating log files;" + ex.getMessage());
     }
 	}
-
-  private Connection getConnection() throws RuntimeException {
-    if (conn == null) {
-      setupDatabaseConnection("snt", "snt");
-    }
-    return conn;
-  }
-
-  private void setupDatabaseConnection(String user, String pw) throws RuntimeException {
-    try {
-      Class.forName("org.postgresql.Driver");
-      //String url = "jdbc:postgresql://localhost/companion";
-      //Properties props = new Properties();
-      //props.setProperty("user","snt");
-      //props.setProperty("password","snt");
-      //props.setProperty("ssl","true");
-      //Connection conn = DriverManager.getConnection(url, props);
-      /**
-        * Don't user certificate for now as software is not operational. In case needed use 
-        * --driver-java-options "-Djavax.net.ssl.trustStore=mystore -Djavax.net.ssl.trustStorePassword=mypassword" 
-        * to set the certificate settings. See https://jdbc.postgresql.org/documentation/94/ssl-client.html and 
-        * http://stackoverflow.com/questions/28840438/how-to-override-sparks-log4j-properties-per-driver for 
-        * some more explanation on the topic
-        */
-      String url = "jdbc:postgresql://localhost/companion?user=" + user + "&password=" + pw + "&ssl=true&sslfactory=org.postgresql.ssl.NonValidatingFactory";
-      conn = DriverManager.getConnection(url);
-    } catch (ClassNotFoundException ex) {
-      ex.printStackTrace();
-      throw new RuntimeException("Problem loading the Postgres JDBC driver");
-    } catch (SQLException ex) {
-      ex.printStackTrace();
-      throw new RuntimeException("Problem connecting to or manipulating COMPANION database");
-    }
-  }
-
-  private void closeConnection() {
-    try {
-      if (conn != null) {
-        conn.close();
-        conn = null;
-      }
-    } catch (SQLException ex) {
-      ex.printStackTrace();
-      throw new RuntimeException("Problem closing connection to COMPANION database");
-    }
-  }
-
-  private void addMeasurementSiteToDb(MeasurementSite ms) throws SQLException {
-    getConnection();
-    String selectSql = "SELECT * FROM measurementsite where ndwid='" + ms.getNdwid() + "'";
-    LOGGER.finest("SQL statement to get number of records: " + selectSql);
-    Statement st = conn.createStatement();
-    // Check first if measurement site already exists in db
-    ResultSet rs = st.executeQuery(selectSql);
-    if (!rs.next()) {
-      // Does not exist, so add to database
-      String selectMaxSql = "SELECT max(id) FROM measurementsite";
-      LOGGER.finest("SQL statement to get max id: " + selectMaxSql);
-      // Check first if measurement site already exists in db
-      rs = st.executeQuery(selectMaxSql);
-      int maxId = 1;
-      while (rs.next()) {
-        int maxDbId = rs.getInt(1);
-        LOGGER.finest("Max id in measurementsite table: " + maxDbId);
-        maxId = maxDbId + 1;
-        break;
-      }
-      String carriageWay1 = "NULL";
-      if (ms.getCarriageway1() != null) {
-        carriageWay1 = "'" + ms.getCarriageway1() + "'";
-      }
-      String carriageWay2 = "NULL";
-      if (ms.getCarriageway2() != null) {
-        carriageWay2 = "'" + ms.getCarriageway2() + "'";
-      }
-      String location2 = "NULL";
-      if (ms.getLocation2() != null) {
-        location2 = "'" + ms.getLocation2() + "'";
-      }
-      String ndwId = ms.getNdwid();
-      ndwId = ndwId.replaceAll("'", "_");
-      String name = ms.getName();
-      name = name.replaceAll("'", "_");
-      String insertSql = "INSERT INTO measurementsite VALUES(" + maxId +  ", '" + ndwId + "', '" + name + "', " + ms.getNdwtype() + ", '" + ms.getLocation1() + "', " + 
-        carriageWay1 + ", " + ms.getLengthaffected1() + ", "  + location2 + ", " + carriageWay2 + ", " + ms.getLengthaffected2() + ")";
-      LOGGER.finest(insertSql);
-      int rowsAdded = st.executeUpdate(insertSql);
-      LOGGER.finest("Rows added: " + rowsAdded);
-    } else {
-      LOGGER.finest("Row with NDW id " + ms.getNdwid() + " exists already");
-    }
-    rs.close();
-    st.close();
-  }
 
   public List<MeasurementSite> call(String pXmlString) {
     // Parse the XML formatted string using the DOM parser which is good to have all elements loaded in memory, but is known not to be the fastest parser
@@ -165,13 +56,11 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
         fillPayloadFromDocument(payloadPublicationElement, measurementSites);
       }
 
-      LOGGER.info("Finished parsing current measurements XML file");
+      LOGGER.info("Finished parsing current measurements XML file; now add measurement sites to database");
 
       // Fill database with measurement sites
-      for (MeasurementSite ms : measurementSites) {
-        addMeasurementSiteToDb(ms);
-      }
-      closeConnection();
+      int nrOfRowsAdded = mDbMgr.addMeasurementSitesToDb(measurementSites);
+      LOGGER.info("Finished adding measurement sites to database. Totally " + nrOfRowsAdded + " measurement sites were added to the database");
     } catch (SQLException ex) {
       ex.printStackTrace();
       LOGGER.severe("Something went wrong trying to add measurements to the database; " + ex.getMessage());
@@ -250,11 +139,11 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
     ms.setNdwid(ndwId);    
 
     List<Element> msrChildren = XmlUtilities.getChildren(msrElt);
-    //LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;#Children: " + msrChildren.size());
+    LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;#Children: " + msrChildren.size());
     NodeList measurementSiteRecordVersionTimeList = msrElt.getElementsByTagName("measurementSiteRecordVersionTime");
     if (measurementSiteRecordVersionTimeList.getLength() > 0) {
       Element measurementSiteRecordVersionTime = (Element) measurementSiteRecordVersionTimeList.item(0);
-      //LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Measurement site record version time: " + XmlUtilities.getCharacterDataFromElement(measurementSiteRecordVersionTime));
+      LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Measurement site record version time: " + XmlUtilities.getCharacterDataFromElement(measurementSiteRecordVersionTime));
     }
 
     NodeList measurementSiteNameList = msrElt.getElementsByTagName("measurementSiteName");
@@ -267,7 +156,7 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
         if (measurementSiteNameValuesValueList.getLength() > 0) {
           Element measurementSiteNameValuesValue = (Element) measurementSiteNameValuesValueList.item(0);
           String name = XmlUtilities.getCharacterDataFromElement(measurementSiteNameValuesValue);
-          //LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Measurement site name: " + name);
+          LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Measurement site name: " + name);
           ms.setName(name);
         }
       }
@@ -281,7 +170,7 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
         int mslTypeInt = mNdwTypes.get(mslType);
         ms.setNdwtype(mslTypeInt);
       }
-      //LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Measurement site location type: " + mslType);
+      LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Measurement site location type: " + mslType);
       List<String> knownMslTags = new ArrayList<String>();
       knownMslTags.add("locationContainedInItinerary");
       knownMslTags.add("locationForDisplay");
@@ -296,7 +185,7 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
           if (locationList.getLength() > 0) {
             Element location = (Element) locationList.item(0);
             // Always xsi:type:Linear type
-            //LOGGER.finest("Location type : " + XmlUtilities.getCharacterDataFromElement(location));
+            LOGGER.finest("Location type : " + XmlUtilities.getCharacterDataFromElement(location));
             List<String> knownLocTags = new ArrayList<String>();
             knownLocTags.add("locationForDisplay");
             knownLocTags.add("supplementaryPositionalDescription");
@@ -344,7 +233,7 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
         ex.printStackTrace();
         LOGGER.severe("Latitude and longitude not properly formed as numeric values; " + ex.getMessage());
       }
-      //LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Location for display (lat, lon) = (" + latitudeString + ", " + longitudeString + ")");
+      LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Location for display (lat, lon) = (" + latitudeString + ", " + longitudeString + ")");
     }
   }
 
@@ -378,7 +267,7 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
             ms.setCarriageway1(carriageWayString);
             carriageWayString = "carriage way : " + XmlUtilities.getCharacterDataFromElement(carriageWay);
           }
-          //LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;" + carriageWayString + ", " + lengthAffectedString);
+          LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;" + carriageWayString + ", " + lengthAffectedString);
         }
       } else if (!isContainedInList(knownSpdTags, supplementaryPositionalDescriptionChildTagName)) {
         LOGGER.info("New element under supplementary positional description in location: " + supplementaryPositionalDescriptionChildTagName);
@@ -440,7 +329,7 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
       }
     }
     endCoordinateString += ")";
-    //LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Coordinates : " + startCoordinateString + ", " + endCoordinateString);
+    LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Coordinates : " + startCoordinateString + ", " + endCoordinateString);
   }
 
   private boolean isContainedInList(List<String> valueList, String searchString) {
