@@ -1,13 +1,25 @@
-/* SimpleApp.java */
+import org.apache.http.NameValuePair;
+import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.util.EntityUtils;
 import org.apache.spark.api.java.*;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkFiles;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.FlatMapFunction;
+
+import java.io.*;
+
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class SimpleApp {
   private static final Pattern SPACE = Pattern.compile(" ");
@@ -28,7 +40,7 @@ public class SimpleApp {
      * A Spark configuration object with a name for the application. The master (a Spark, Mesos or YARN cluster URL) 
      * is not set as it will be obtained by launching the application with spark-submit.
      */
-    SparkConf conf = new SparkConf().setAppName("Simple Application")
+    SparkConf conf = new SparkConf().setAppName("COMPANION Weather Traffic Change Detection System")
       .set("spark.executor.memory", "5g")
       .set("spark.driver.memory", "5g")
       .set("spark.executor.maxResultSize", "5g"); 
@@ -106,14 +118,15 @@ public class SimpleApp {
       }
     }
 
-    // Download data from NDW
-    System.out.println("Trying to download gzip file containing measurements from NDW");
-    String ftpUrl = "ftp://83.247.110.3/";
-    String rootDir = SparkFiles.getRootDirectory(); // Get the location where the files added with addFile are downloaded
-    System.out.println("Gzipped files will be downloaded to: " + rootDir);
 
-    // Current measurements
-    if (true) {
+    String ftpUrl = "ftp://83.247.110.3/";
+    // Current measurements for getting the measurement sites
+    if (false) {
+      // Download data from NDW
+      System.out.println("Trying to download gzip file containing measurements from NDW");
+      String rootDir = SparkFiles.getRootDirectory(); // Get the location where the files added with addFile are downloaded
+      System.out.println("Gzipped files will be downloaded to: " + rootDir);
+
       System.out.println("Downloading current measurements containing the measurement locations");
       String measurementFileName = "measurement_current.gz";
       String measurementZipUrl = ftpUrl + measurementFileName;
@@ -186,8 +199,48 @@ public class SimpleApp {
       }
     }
 
+    // Weather observations
+    if (true) {
+      System.out.println("Downloading weather");
+      String url = "http://projects.knmi.nl/klimatologie/uurgegevens/getdata_uur.cgi";
+      HttpClient client = HttpClientBuilder.create().build();
+      HttpPost post = new HttpPost(url);
+      String USER_AGENT = "Mozilla/5.0";
+      List<NameValuePair> urlParameters = new ArrayList<NameValuePair>();
+      urlParameters.add(new BasicNameValuePair("start", "2015120101"));
+      urlParameters.add(new BasicNameValuePair("end", "2015120124"));
+      urlParameters.add(new BasicNameValuePair("vars", "ALL"));
+      urlParameters.add(new BasicNameValuePair("stns", "ALL"));
+      post.setHeader("User-Agent", USER_AGENT);
+      String content = String.format("");
+      try {
+        post.setEntity(new UrlEncodedFormEntity(urlParameters)); 
+        //post.setEntity(new StringEntity(content));
+        HttpResponse response = client.execute(post);
+        System.out.println("HttpResponse status code: " + response.getStatusLine().getStatusCode() + ", reason phrase: " + response.getStatusLine().getStatusCode());
+        InputStream is = response.getEntity().getContent();
+        //System.out.println(readInputStream(is));
+        JavaRDD<String> weatherResponse = sc.parallelize(readInputStreamToLines(is));
+        JavaRDD<List<WeatherObservation>> weatherObservations = weatherResponse.map(new ObservedWeatherDownloaderKNMI());
+        System.out.println("Number of weather observations: " + weatherObservations.count());
+        EntityUtils.consume(response.getEntity()); // To make sure everything is properly released
+      } catch (Exception ex) {
+        System.out.println("Something went wrong trying to download and parse weather data;" + ex.getMessage());
+        ex.printStackTrace();
+      }
+      System.out.println("Finished with weather");
+      try {
+        System.out.println("Putting app to sleep for 10 seconds again");
+        Thread.sleep(10000);
+      } catch (InterruptedException ex) {
+        System.out.println("Something went wrong putting the app to sleep for 100 seconds again");
+        ex.printStackTrace();
+        Thread.currentThread().interrupt();
+      }
+    }
+
     // Traffic speed
-    if (true)
+    if (false)
     {
       System.out.println("Downloading traffic speed");
       String trafficFileName = "trafficspeed.gz";
@@ -256,6 +309,22 @@ public class SimpleApp {
         Thread.currentThread().interrupt();
       }
     }
-
   }
+
+  public static String readInputStream(InputStream input) throws IOException {
+    try (BufferedReader buffer = new BufferedReader(new InputStreamReader(input))) {
+      return buffer.lines().collect(Collectors.joining("\n"));
+    }
+  }  
+
+  public static List<String> readInputStreamToLines(InputStream input) throws IOException {
+    List<String> lines = new ArrayList<String>();
+    try (BufferedReader buffer = new BufferedReader(new InputStreamReader(input))) {
+      String line;
+      while ((line = buffer.readLine()) != null) {
+        lines.add(line);
+      }
+    }
+    return lines;
+  }  
 }

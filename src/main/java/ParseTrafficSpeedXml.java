@@ -51,7 +51,7 @@ public class ParseTrafficSpeedXml implements Function<String, List<SiteMeasureme
         LOGGER.info("Publication time: " + XmlUtilities.getCharacterDataFromElement(line));
 
         NodeList siteMeasurementNodes = payloadPublicationElement.getElementsByTagName("siteMeasurements");
-        LOGGER.info("Number of site measurements: " + siteMeasurementNodes.getLength());
+        LOGGER.info("Number of traffic speed measurements: " + siteMeasurementNodes.getLength());
         for (int i = 0; i < siteMeasurementNodes.getLength(); i++) {
           Element siteMeasurementElement = (Element) siteMeasurementNodes.item(i);
           // LOGGER.info("  Measurement "  + i);

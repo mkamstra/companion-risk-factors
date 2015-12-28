@@ -29,5 +29,15 @@
       <artifactId>postgresql</artifactId>
       <version>9.4-1206-jdbc42</version>
     </dependency>
+    <dependency> <!-- Http client dependency -->
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient</artifactId>
+      <version>4.5.1</version>
+    </dependency>
+    <dependency> <!-- Http core dependency -->
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpcore</artifactId>
+      <version>4.4.4</version>
+    </dependency>
   </dependencies>
 </project>

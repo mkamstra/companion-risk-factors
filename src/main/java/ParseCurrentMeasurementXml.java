@@ -60,7 +60,7 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
 
       // Fill database with measurement sites
       int nrOfRowsAdded = mDbMgr.addMeasurementSitesToDb(measurementSites);
-      LOGGER.info("Finished adding measurement sites to database. Totally " + nrOfRowsAdded + " measurement sites were added to the database");
+      LOGGER.info("Finished adding measurement sites to database. In total " + nrOfRowsAdded + " measurement sites were added to the database");
     } catch (SQLException ex) {
       ex.printStackTrace();
       LOGGER.severe("Something went wrong trying to add measurements to the database; " + ex.getMessage());

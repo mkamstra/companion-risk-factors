@@ -180,4 +180,55 @@ public class DatabaseManager implements Serializable {
     return nrOfRowsAdded;
   }
 
+  public int addWeatherStationsToDb(List<WeatherStation> weatherStations) {
+  int nrOfRowsAdded = 0;
+  getConnection();
+    for (WeatherStation ws : weatherStations) {
+      nrOfRowsAdded += addWeatherStationToDb(ws);
+    }
+    closeConnection();
+    return nrOfRowsAdded;
+  }
+
+  private int addWeatherStationToDb(WeatherStation ws) throws RuntimeException {
+    int nrOfRowsAdded = 0;
+    try {
+      getConnection();
+      String selectSql = "SELECT * FROM weatherstation where knmiid='" + ws.getKnmiId() + "'";
+      LOGGER.finest("SQL statement to get number of records: " + selectSql);
+      Statement st = mConnection.createStatement();
+      // Check first if measurement site already exists in db
+      ResultSet rs = st.executeQuery(selectSql);
+      if (!rs.next()) {
+        // Does not exist, so add to database
+        String selectMaxSql = "SELECT max(id) FROM weatherstation";
+        LOGGER.finest("SQL statement to get max id: " + selectMaxSql);
+        // Check first if measurement site already exists in db
+        rs = st.executeQuery(selectMaxSql);
+        int maxId = 1;
+        while (rs.next()) {
+          int maxDbId = rs.getInt(1);
+          LOGGER.finest("Max id in weatherstation table: " + maxDbId);
+          maxId = maxDbId + 1;
+          break;
+        }
+        String name = ws.getName();
+        name = name.replaceAll("'", "_");
+        String insertSql = "INSERT INTO weatherstation VALUES(" + maxId +  ", '" + ws.getKnmiId() + "', '" + name + "', '{''(" + ws.getLatitude() + "," + ws.getLongitude() + "''}', " + ws.getAltitude() + ")";
+        LOGGER.finest(insertSql);
+        int rowsAdded = st.executeUpdate(insertSql);
+        LOGGER.finest("Rows added: " + rowsAdded);
+        nrOfRowsAdded = rowsAdded;
+      } else {
+        LOGGER.finest("Row with KNMI id " + ws.getKnmiId() + " exists already");
+      }
+      rs.close();
+      st.close();
+  } catch (SQLException ex) {
+    ex.printStackTrace();
+    throw new RuntimeException("Problem adding weather station to the database; " + ex.getMessage());
+  }
+    return nrOfRowsAdded;
+  }
+
 }
