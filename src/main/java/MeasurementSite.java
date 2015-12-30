@@ -2,6 +2,8 @@ public class MeasurementSite {
 	private String ndwid;
 	private String name;
 	private int ndwtype;
+	private float latitude = Float.NaN;
+	private float longitude= Float.NaN;
 	private String location1 = "";
 	private String carriageway1 = null;
 	private int lengthaffected1 = -1;
@@ -33,11 +35,27 @@ public class MeasurementSite {
 		return ndwtype;
 	}
 
+	public void setLatitude(float pLatitude) {
+		latitude = pLatitude;
+	}
+
+	public float getLatitude() {
+		return latitude;
+	}
+
+	public void setLongitude(float pLongitude) {
+		longitude = pLongitude;
+	}
+
+	public float getLongitude() {
+		return longitude;
+	}
+
 	public void setLocation1(String pLocation1) {
 		location1 = pLocation1;
 	}
 
-	public void addCoordinateToLocation1(double pLatitude, double pLongitude) {
+	public void addCoordinateToLocation1(float pLatitude, float pLongitude) {
 		String locationString = "(" + pLatitude + ", " + pLongitude + ")";
 		String commaString = ", ";
 		if (location1.length() == 0) {
@@ -71,7 +89,7 @@ public class MeasurementSite {
 		location2 = pLocation2;
 	}
 
-	public void addCoordinateToLocation2(double pLatitude, double pLongitude) {
+	public void addCoordinateToLocation2(float pLatitude, float pLongitude) {
 		String locationString = "(" + pLatitude + ", " + pLongitude + ")";
 		String commaString = ", ";
 		if (location2.length() == 0) {

@@ -21,19 +21,20 @@ import javax.net.ssl.HttpsURLConnection;
  * vars=ALL (all parameters)
  * stns=ALL (all stations)
  */
-public class ObservedWeatherDownloaderKNMI implements Function<String, List<WeatherObservation>> {
+public class WeatherKNMIParser implements Function<String, List<WeatherObservation>> {
 
-	private final static Logger LOGGER = Logger.getLogger(ObservedWeatherDownloaderKNMI.class.getName());
+	private final static Logger LOGGER = Logger.getLogger(WeatherKNMIParser.class.getName());
 
  	private final String USER_AGENT = "Mozilla/5.0";
 
 	private DatabaseManager mDbMgr = null;
 
- 	public ObservedWeatherDownloaderKNMI() {
+ 	public WeatherKNMIParser() {
  		try {
-			CompanionLogger.setup(ObservedWeatherDownloaderKNMI.class.getName());
+			CompanionLogger.setup(WeatherKNMIParser.class.getName());
 			LOGGER.setLevel(Level.INFO);
 		    mDbMgr = DatabaseManager.getInstance();
+		    LOGGER.info("Creating WeatherKNMIParser");
 		} catch (IOException ex) {
 			ex.printStackTrace();
 			throw new RuntimeException("Problem creating log files;" + ex.getMessage());
@@ -44,8 +45,85 @@ public class ObservedWeatherDownloaderKNMI implements Function<String, List<Weat
     // Parse the XML formatted string using the DOM parser which is good to have all elements loaded in memory, but is known not to be the fastest parser
     List<WeatherObservation> weatherObservations = new ArrayList<WeatherObservation>();
     try {
-      LOGGER.info("Starting to parse weather observatiton text file from KNMI");
+      LOGGER.info("Starting to parse weather observatiton text file from KNMI:");
+      LOGGER.info("Length of text file: " + pWeatherObservations.length());
       List<WeatherStation> weatherStations = new ArrayList<WeatherStation>();
+      String[] weatherData = pWeatherObservations.split("____");
+	  int index = 0;
+	  boolean stationCodes = false;
+	  boolean observations = false;
+	  String[] observationParameters = new String[]{};
+      for (String inputLine : weatherData) {
+		index++;
+		if (stationCodes) {
+			String[] stationLineElements = inputLine.split(" ");
+			List<String> stationElements = new ArrayList<String>();
+			for (String elt : stationLineElements) {
+				if ((elt.length() == 0) || (elt.equals("#")))
+					continue;
+
+				stationElements.add(elt);
+			}
+			if (stationElements.size() < 5) {
+				if (stationElements.size() > 0)
+					LOGGER.severe("Station info not correct in file: " + inputLine);
+			} else {
+				LOGGER.finest(inputLine);
+				String codeString = stationElements.get(0).trim();
+				if (codeString.endsWith(":")) {
+					codeString = codeString.substring(0, codeString.length() - 1);
+				}
+				LOGGER.info("Code : " + codeString);
+				LOGGER.info("Lon  : " + stationElements.get(1));
+				LOGGER.info("Lat  : " + stationElements.get(2));
+				LOGGER.info("Alt  : " + stationElements.get(3));
+				String name = stationElements.get(4);
+				for (int i = 5; i < stationElements.size(); i++) {
+					name += " " + stationElements.get(i);
+				}
+				LOGGER.info("Name : " + name);
+				try {
+					WeatherStation station = new WeatherStation(Integer.valueOf(codeString), name, Float.valueOf(stationElements.get(2)), Float.valueOf(stationElements.get(1)), Float.valueOf(stationElements.get(3)));
+					weatherStations.add(station);
+				} catch (Exception ex) {
+					LOGGER.severe("Something went wrong trying to create WeatherStation object from a parsed line of data;" + ex.getMessage());
+					ex.printStackTrace();
+				}
+			}
+		} else if (observations) {
+			if (inputLine.startsWith("#")) {
+				continue;
+			}
+			String[] observationElements = inputLine.split(",");
+			// for (int i = 0; i < observationParameters.length; i++) {
+			// 	System.out.print(observationParameters[i] + ": " + observationElements[i] + " ");
+			// }
+			// System.out.println();
+		} else {
+			LOGGER.finest(index + ": " + inputLine);
+		}
+
+		if (inputLine.startsWith("# STN      LON(east)   LAT(north)     ALT(m)  NAM")) {
+			/** 
+			 * Look for the line containing "# # # STN" and the line containing
+			 * "# # YYYYMMDD". In between the station codes can be found. 
+			 */
+			stationCodes = true;
+			continue; // Straight away to next iteration
+		} else if (inputLine.startsWith("# YYYYMMDD = datum (YYYY=jaar,MM=maand,DD=dag)")) {
+			stationCodes = false;
+			continue;
+		} else if (inputLine.startsWith("# STN,YYYYMMDD,   HH,   DD,   FH,   FF,   FX,    T,  T10,   TD,   SQ,    Q,   DR,   RH,    P,   VV,    N,    U,   WW,   IX,    M,    R,    S,    O,    Y")) {
+			observationParameters = inputLine.split(",");
+			// System.out.println("Number of elements: " + observationParameters.length);
+			// for (int i = 0; i < observationParameters.length; i++) {
+			// 	System.out.print(observationParameters[i]);
+			// }
+			// System.out.println();
+			observations = true;
+			continue;
+		}
+      }
 
       LOGGER.info("Finished parsing weather observations text file from KNMI; now add weather stations to database (if not already there)");
 

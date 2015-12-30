@@ -226,9 +226,13 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
       String latitudeString = XmlUtilities.getCharacterDataFromElement(latitude); 
       String longitudeString = XmlUtilities.getCharacterDataFromElement(longitude);
       try {
-        double lat = Double.valueOf(latitudeString);
-        double lon = Double.valueOf(longitudeString);
+        float lat = Float.valueOf(latitudeString);
+        float lon = Float.valueOf(longitudeString);
         ms.addCoordinateToLocation1(lat, lon);
+        if (!Float.isNaN(ms.getLatitude()))
+          ms.setLatitude(lat);
+        if (!Float.isNaN(ms.getLongitude()))
+          ms.setLongitude(lon);
       } catch (Exception ex) {
         ex.printStackTrace();
         LOGGER.severe("Latitude and longitude not properly formed as numeric values; " + ex.getMessage());

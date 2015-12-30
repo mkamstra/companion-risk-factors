@@ -162,7 +162,7 @@ public class DatabaseManager implements Serializable {
 	      ndwId = ndwId.replaceAll("'", "_");
 	      String name = ms.getName();
 	      name = name.replaceAll("'", "_");
-	      String insertSql = "INSERT INTO measurementsite VALUES(" + maxId +  ", '" + ndwId + "', '" + name + "', " + ms.getNdwtype() + ", '" + ms.getLocation1() + "', " + 
+	      String insertSql = "INSERT INTO measurementsite VALUES(" + maxId +  ", '" + ndwId + "', '" + name + "', " + ms.getNdwtype() + "', ST_GeomFromText('POINT(" + ms.getLatitude() + " " + ms.getLongitude() + ")', 4326), '" + ms.getLocation1() + "', " + 
 	        carriageWay1 + ", " + ms.getLengthaffected1() + ", "  + location2 + ", " + carriageWay2 + ", " + ms.getLengthaffected2() + ")";
 	      LOGGER.finest(insertSql);
 	      int rowsAdded = st.executeUpdate(insertSql);
@@ -214,7 +214,7 @@ public class DatabaseManager implements Serializable {
         }
         String name = ws.getName();
         name = name.replaceAll("'", "_");
-        String insertSql = "INSERT INTO weatherstation VALUES(" + maxId +  ", '" + ws.getKnmiId() + "', '" + name + "', '{''(" + ws.getLatitude() + "," + ws.getLongitude() + "''}', " + ws.getAltitude() + ")";
+        String insertSql = "INSERT INTO weatherstation VALUES(" + maxId +  ", '" + ws.getKnmiId() + "', '" + name + "', ST_GeomFromText('POINT(" + ws.getLatitude() + " " + ws.getLongitude() + ")', 4326), " + ws.getAltitude() + ")";
         LOGGER.finest(insertSql);
         int rowsAdded = st.executeUpdate(insertSql);
         LOGGER.finest("Rows added: " + rowsAdded);

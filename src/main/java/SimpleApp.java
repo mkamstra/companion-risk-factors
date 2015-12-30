@@ -15,6 +15,9 @@ import org.apache.spark.api.java.function.FlatMapFunction;
 
 import java.io.*;
 
+import java.time.*;
+import java.time.format.*;
+
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,9 +44,9 @@ public class SimpleApp {
      * is not set as it will be obtained by launching the application with spark-submit.
      */
     SparkConf conf = new SparkConf().setAppName("COMPANION Weather Traffic Change Detection System")
-      .set("spark.executor.memory", "5g")
-      .set("spark.driver.memory", "5g")
-      .set("spark.executor.maxResultSize", "5g"); 
+      .set("spark.executor.memory", "3g")
+      .set("spark.driver.memory", "3g")
+      .set("spark.executor.maxResultSize", "3g"); 
       /**
        * The previous settings do not work when running in local mode:
        * For local mode you only have one executor, and this executor is your driver, so you need to set the driver's 
@@ -158,7 +161,7 @@ public class SimpleApp {
             System.out.println("Starting to parse current measurement xml now");
 
             // int nrOfRecords = siteMeasurements.reduce(new CountXmlRecords());
-            System.out.println("Total number of records: " + measurementSites.count()); // Only here the ParseTrafficSpeedXml is actually called and executed due to the count action
+            System.out.println("Total number of measurement site records: " + measurementSites.count()); // Only here the ParseTrafficSpeedXml is actually called and executed due to the count action
           } catch (InterruptedException ex) {
             System.out.println("Something went wrong putting the app to sleep for 10 seconds");
             ex.printStackTrace();
@@ -219,11 +222,21 @@ public class SimpleApp {
         HttpResponse response = client.execute(post);
         System.out.println("HttpResponse status code: " + response.getStatusLine().getStatusCode() + ", reason phrase: " + response.getStatusLine().getStatusCode());
         InputStream is = response.getEntity().getContent();
+        String weatherResponse = readInputStream(is);
+        Instant now = Instant.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault());
+        File tmpFile = File.createTempFile("WeatherResponse_" + formatter.format(now), ".tmp");
+        BufferedWriter writer = new BufferedWriter(new FileWriter(tmpFile));
+        writer.write(weatherResponse);
+        writer.close();
+        JavaRDD<String> weatherData = sc.textFile(tmpFile.getAbsolutePath()).cache(); 
         //System.out.println(readInputStream(is));
-        JavaRDD<String> weatherResponse = sc.parallelize(readInputStreamToLines(is));
-        JavaRDD<List<WeatherObservation>> weatherObservations = weatherResponse.map(new ObservedWeatherDownloaderKNMI());
+        JavaRDD<List<WeatherObservation>> weatherObservations = weatherData.map(new WeatherKNMIParser());
         System.out.println("Number of weather observations: " + weatherObservations.count());
         EntityUtils.consume(response.getEntity()); // To make sure everything is properly released
+      } catch (IOException ex) {
+        System.out.println("Something went wrong trying to save downloaded weather data to file;" + ex.getMessage());
+        ex.printStackTrace();
       } catch (Exception ex) {
         System.out.println("Something went wrong trying to download and parse weather data;" + ex.getMessage());
         ex.printStackTrace();
@@ -313,18 +326,8 @@ public class SimpleApp {
 
   public static String readInputStream(InputStream input) throws IOException {
     try (BufferedReader buffer = new BufferedReader(new InputStreamReader(input))) {
-      return buffer.lines().collect(Collectors.joining("\n"));
+      return buffer.lines().collect(Collectors.joining("____"));
     }
   }  
 
-  public static List<String> readInputStreamToLines(InputStream input) throws IOException {
-    List<String> lines = new ArrayList<String>();
-    try (BufferedReader buffer = new BufferedReader(new InputStreamReader(input))) {
-      String line;
-      while ((line = buffer.readLine()) != null) {
-        lines.add(line);
-      }
-    }
-    return lines;
-  }  
 }
