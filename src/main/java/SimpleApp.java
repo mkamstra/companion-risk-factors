@@ -64,6 +64,7 @@ public class SimpleApp {
        * filesystem, HDFS, HBase, or any data source offering a Hadoop InputFormat.
        */
       JavaRDD<String> logData = sc.textFile(logFile).cache(); // Read the file logFile as a collection of lines (example of referencing a dataset in an external storage system). 
+      System.out.println("Logdata lines: " + logData.count());
 
       // Find the number of lines containing the letters a and b using the filter transformation
       /**
@@ -108,6 +109,7 @@ public class SimpleApp {
       // Compute the sum of a number of elements in a list
       List<Double> data = Arrays.asList(doubleData); 
       JavaRDD<Double> distData = sc.parallelize(data); // (Example of parallelizing an existing collection)
+      System.out.println("Elements in parallelized collection: " + distData.count());
       double sum = distData.reduce((a, b) -> a + b); 
       System.out.println("Sum of elements: " + sum);
 
@@ -120,7 +122,6 @@ public class SimpleApp {
         Thread.currentThread().interrupt();
       }
     }
-
 
     String ftpUrl = "ftp://83.247.110.3/";
     // Current measurements for getting the measurement sites
@@ -203,7 +204,7 @@ public class SimpleApp {
     }
 
     // Weather observations
-    if (true) {
+    if (false) {
       System.out.println("Downloading weather");
       String url = "http://projects.knmi.nl/klimatologie/uurgegevens/getdata_uur.cgi";
       HttpClient client = HttpClientBuilder.create().build();
@@ -211,7 +212,7 @@ public class SimpleApp {
       String USER_AGENT = "Mozilla/5.0";
       List<NameValuePair> urlParameters = new ArrayList<NameValuePair>();
       urlParameters.add(new BasicNameValuePair("start", "2015120101"));
-      urlParameters.add(new BasicNameValuePair("end", "2015120124"));
+      urlParameters.add(new BasicNameValuePair("end", "2015123124"));
       urlParameters.add(new BasicNameValuePair("vars", "ALL"));
       urlParameters.add(new BasicNameValuePair("stns", "ALL"));
       post.setHeader("User-Agent", USER_AGENT);
@@ -229,11 +230,34 @@ public class SimpleApp {
         BufferedWriter writer = new BufferedWriter(new FileWriter(tmpFile));
         writer.write(weatherResponse);
         writer.close();
-        JavaRDD<String> weatherData = sc.textFile(tmpFile.getAbsolutePath()).cache(); 
+        JavaRDD<String> weatherData = sc.textFile(tmpFile.getAbsolutePath()).cache();
+        System.out.println("Weather data count before parsing: " + weatherData.count());
         //System.out.println(readInputStream(is));
-        JavaRDD<List<WeatherObservation>> weatherObservations = weatherData.map(new WeatherKNMIParser());
-        System.out.println("Number of weather observations: " + weatherObservations.count());
+        JavaRDD<String> weatherObservationsNotFormatted = weatherData.map(new WeatherKNMIParser());
+        // Now write to file again to let the parser create a proper paralellizable list of observations
+        //System.out.println("Number of weather observations: " + weatherObservations.count());
+        File tmpFileObservations = File.createTempFile("WeatherResponse_Observations_" + formatter.format(now), ".tmp");
+        BufferedWriter writerObservations = new BufferedWriter(new FileWriter(tmpFileObservations));
+        for (String wo : weatherObservationsNotFormatted.collect()) {
+          writerObservations.write(wo);
+        }
+        writerObservations.close();
+        JavaRDD<String> weatherObservations = sc.textFile(tmpFileObservations.getAbsolutePath()).cache();
+        System.out.println("Weather data count after parsing: " + weatherObservations.count());
+
         EntityUtils.consume(response.getEntity()); // To make sure everything is properly released
+        // Get all observations for weather station 210
+        int selectedStationNdwId = 391;
+        System.out.println("Weather observations for station " + selectedStationNdwId);
+        List<String> weatherObservationsForStation = weatherObservations.filter(new Function<String, Boolean>() {
+          public Boolean call(String s) { 
+              return s.trim().startsWith(String.valueOf(selectedStationNdwId));
+          }
+        }).collect();
+        for (String obs : weatherObservationsForStation) {
+          System.out.println(obs);
+        }
+        System.out.println("-----------------------------------------");
       } catch (IOException ex) {
         System.out.println("Something went wrong trying to save downloaded weather data to file;" + ex.getMessage());
         ex.printStackTrace();
@@ -243,7 +267,7 @@ public class SimpleApp {
       }
       System.out.println("Finished with weather");
       try {
-        System.out.println("Putting app to sleep for 10 seconds again");
+        System.out.println("Putting app to sleep for 10 seconds after weather actions");
         Thread.sleep(10000);
       } catch (InterruptedException ex) {
         System.out.println("Something went wrong putting the app to sleep for 100 seconds again");
@@ -251,6 +275,14 @@ public class SimpleApp {
         Thread.currentThread().interrupt();
       }
     }
+
+    if (false) {
+      // Add a link between all measurement sites and weather stations. Only needs to be done when measurement site and 
+      // weather station tables have been filled without adding these links. Normally not needed to do this.
+      DatabaseManager dbMgr = DatabaseManager.getInstance();
+      dbMgr.linkAllMeasurementSitesWithClosestWeatherStation();
+    }
+
 
     // Traffic speed
     if (false)
@@ -321,6 +353,14 @@ public class SimpleApp {
         ex.printStackTrace();
         Thread.currentThread().interrupt();
       }
+    }
+
+    if (true) {
+      // Generate KML from database data
+      DatabaseManager dbMgr = DatabaseManager.getInstance();
+      List<WeatherStation> wsList = dbMgr.getAllWeatherStations();
+      KmlGenerator kmlGenerator = new KmlGenerator();
+      kmlGenerator.generateKmlForWeatherStations(wsList);
     }
   }
 

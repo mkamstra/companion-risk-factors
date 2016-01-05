@@ -21,7 +21,7 @@ import javax.net.ssl.HttpsURLConnection;
  * vars=ALL (all parameters)
  * stns=ALL (all stations)
  */
-public class WeatherKNMIParser implements Function<String, List<WeatherObservation>> {
+public class WeatherKNMIParser implements Function<String, String> {
 
 	private final static Logger LOGGER = Logger.getLogger(WeatherKNMIParser.class.getName());
 
@@ -41,9 +41,9 @@ public class WeatherKNMIParser implements Function<String, List<WeatherObservati
 	    }
  	}
 
-  public List<WeatherObservation> call(String pWeatherObservations) {
+  public String call(String pWeatherObservations) {
     // Parse the XML formatted string using the DOM parser which is good to have all elements loaded in memory, but is known not to be the fastest parser
-    List<WeatherObservation> weatherObservations = new ArrayList<WeatherObservation>();
+    List<String> weatherObservations = new ArrayList<String>();
     try {
       LOGGER.info("Starting to parse weather observatiton text file from KNMI:");
       LOGGER.info("Length of text file: " + pWeatherObservations.length());
@@ -73,15 +73,15 @@ public class WeatherKNMIParser implements Function<String, List<WeatherObservati
 				if (codeString.endsWith(":")) {
 					codeString = codeString.substring(0, codeString.length() - 1);
 				}
-				LOGGER.info("Code : " + codeString);
-				LOGGER.info("Lon  : " + stationElements.get(1));
-				LOGGER.info("Lat  : " + stationElements.get(2));
-				LOGGER.info("Alt  : " + stationElements.get(3));
+				LOGGER.finest("Code : " + codeString);
+				LOGGER.finest("Lon  : " + stationElements.get(1));
+				LOGGER.finest("Lat  : " + stationElements.get(2));
+				LOGGER.finest("Alt  : " + stationElements.get(3));
 				String name = stationElements.get(4);
 				for (int i = 5; i < stationElements.size(); i++) {
 					name += " " + stationElements.get(i);
 				}
-				LOGGER.info("Name : " + name);
+				LOGGER.finest("Name : " + name);
 				try {
 					WeatherStation station = new WeatherStation(Integer.valueOf(codeString), name, Float.valueOf(stationElements.get(2)), Float.valueOf(stationElements.get(1)), Float.valueOf(stationElements.get(3)));
 					weatherStations.add(station);
@@ -94,7 +94,8 @@ public class WeatherKNMIParser implements Function<String, List<WeatherObservati
 			if (inputLine.startsWith("#")) {
 				continue;
 			}
-			String[] observationElements = inputLine.split(",");
+			weatherObservations.add(inputLine);
+			//String[] observationElements = inputLine.split(",");
 			// for (int i = 0; i < observationParameters.length; i++) {
 			// 	System.out.print(observationParameters[i] + ": " + observationElements[i] + " ");
 			// }
@@ -137,7 +138,12 @@ public class WeatherKNMIParser implements Function<String, List<WeatherObservati
       LOGGER.severe("Something went wrong trying to parse the text file containing weather observations downloaded from the KNMI; " + ex.getMessage());
       ex.printStackTrace();
     }
-    return weatherObservations;
+
+    String weatherObservationsString = "";
+    for (String wo : weatherObservations) {
+    	weatherObservationsString += wo + "\n";
+    }
+    return weatherObservationsString;
   }	
 
 	// // HTTP GET request

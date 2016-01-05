@@ -229,10 +229,17 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
         float lat = Float.valueOf(latitudeString);
         float lon = Float.valueOf(longitudeString);
         ms.addCoordinateToLocation1(lat, lon);
-        if (!Float.isNaN(ms.getLatitude()))
+        int tmpCounter = 0;
+        if (Float.isNaN(ms.getLatitude())) {
           ms.setLatitude(lat);
-        if (!Float.isNaN(ms.getLongitude()))
+          tmpCounter++;
+        }
+        if (Float.isNaN(ms.getLongitude())) {
           ms.setLongitude(lon);
+          tmpCounter++;
+        }
+        if (tmpCounter == 2) 
+          LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Setting latitude and longitude of measurement site (lat,lon) = (" + lat + ", " + lon + ")");
       } catch (Exception ex) {
         ex.printStackTrace();
         LOGGER.severe("Latitude and longitude not properly formed as numeric values; " + ex.getMessage());
@@ -310,8 +317,28 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
         if (latitudeList.getLength() > 0 && longitudeList.getLength() > 0) {
           Element latitude = (Element) latitudeList.item(0);
           Element longitude = (Element) longitudeList.item(0);
-          startCoordinateString += XmlUtilities.getCharacterDataFromElement(latitude) + ", " + 
-              XmlUtilities.getCharacterDataFromElement(longitude);
+          String latitudeString = XmlUtilities.getCharacterDataFromElement(latitude); 
+          String longitudeString = XmlUtilities.getCharacterDataFromElement(longitude);
+          startCoordinateString += latitudeString + ", " + longitudeString;
+          try {
+            float lat = Float.valueOf(latitudeString);
+            float lon = Float.valueOf(longitudeString);
+            int tmpCounter = 0;
+            if (Float.isNaN(ms.getLatitude())) {
+              ms.setLatitude(lat);
+              tmpCounter++;
+            }
+            if (Float.isNaN(ms.getLongitude())) {
+              ms.setLongitude(lon);
+              tmpCounter++;
+            }
+            if (tmpCounter == 2) {
+              LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Setting latitude and longitude of measurement site (lat,lon) = (" + lat + ", " + lon + ")");              
+            }
+          } catch (Exception ex) {
+            ex.printStackTrace();
+            LOGGER.severe("Latitude and longitude not properly formed as numeric values; " + ex.getMessage());
+          }
         }
       }
     }

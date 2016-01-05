@@ -1,6 +1,8 @@
 import java.io.Serializable;
+import java.io.IOException;
 import java.sql.*;
 import java.util.*;
+import java.util.Map.*;
 import java.util.logging.*;
 
 public class DatabaseManager implements Serializable {
@@ -9,14 +11,21 @@ public class DatabaseManager implements Serializable {
   private static Connection mConnection = null;
 
   private DatabaseManager() {
-	// Intentionally left blank to ensure singleton pattern
+  	// Intentionally private to ensure singleton pattern
+    try {
+      CompanionLogger.setup(DatabaseManager.class.getName());
+      LOGGER.setLevel(Level.FINEST);
+    } catch (IOException ex) {
+      ex.printStackTrace();
+      throw new RuntimeException("Problem creating log files;" + ex.getMessage());
+    }
   }
 
   public static DatabaseManager getInstance() {
-	if (mInstance == null) {
-	  mInstance = new DatabaseManager();
-	}
-	return mInstance;
+  	if (mInstance == null) {
+  	  mInstance = new DatabaseManager();
+  	}
+  	return mInstance;
   }
 
   private Connection getConnection() throws RuntimeException {
@@ -107,18 +116,27 @@ public class DatabaseManager implements Serializable {
       rs.close();
       st.close();
       closeConnection();
-	} catch (SQLException ex) {
-	  ex.printStackTrace();
-	  throw new RuntimeException("Problem getting all measurement site ids from the database;" + ex.getMessage());
-	}
+  	} catch (SQLException ex) {
+  	  ex.printStackTrace();
+  	  throw new RuntimeException("Problem getting all measurement site ids from the database;" + ex.getMessage());
+  	}
     return measurementSiteIds;
   }
 
   public int addMeasurementSitesToDb(List<MeasurementSite> measurementSites) {
-	int nrOfRowsAdded = 0;
-	getConnection();
+  	int nrOfRowsAdded = 0;
+  	getConnection();
+    List<MeasurementSite> addedMeasurementSites = new ArrayList<MeasurementSite>();
     for (MeasurementSite ms : measurementSites) {
-      nrOfRowsAdded += addMeasurementSiteToDb(ms);
+      int addedRows = addMeasurementSiteToDb(ms);
+      if (addedRows > 0)
+        addedMeasurementSites.add(ms);
+
+      nrOfRowsAdded += addedRows;
+    }
+    // Link the added measurement sites to weather stations
+    for (MeasurementSite ms : addedMeasurementSites) {
+      linkMeasurementSiteWithClosestWeatherStation(ms);
     }
     closeConnection();
     return nrOfRowsAdded;
@@ -127,6 +145,9 @@ public class DatabaseManager implements Serializable {
   private int addMeasurementSiteToDb(MeasurementSite ms) throws RuntimeException {
     int nrOfRowsAdded = 0;
     try {
+      if (Float.isNaN(ms.getLatitude()) || Float.isNaN(ms.getLongitude())) {
+        throw new RuntimeException("Problem adding measurement site to the database as the latitude and longitude of the measurement site have not been filled properly; lat = " + ms.getLatitude() + ", lon = " + ms.getLongitude());
+      }
 	    getConnection();
 	    String selectSql = "SELECT * FROM measurementsite where ndwid='" + ms.getNdwid() + "'";
 	    LOGGER.finest("SQL statement to get number of records: " + selectSql);
@@ -162,7 +183,7 @@ public class DatabaseManager implements Serializable {
 	      ndwId = ndwId.replaceAll("'", "_");
 	      String name = ms.getName();
 	      name = name.replaceAll("'", "_");
-	      String insertSql = "INSERT INTO measurementsite VALUES(" + maxId +  ", '" + ndwId + "', '" + name + "', " + ms.getNdwtype() + "', ST_GeomFromText('POINT(" + ms.getLatitude() + " " + ms.getLongitude() + ")', 4326), '" + ms.getLocation1() + "', " + 
+	      String insertSql = "INSERT INTO measurementsite VALUES(" + maxId +  ", '" + ndwId + "', '" + name + "', " + ms.getNdwtype() + ", ST_GeomFromText('POINT(" + ms.getLatitude() + " " + ms.getLongitude() + ")', 4326), '" + ms.getLocation1() + "', " + 
 	        carriageWay1 + ", " + ms.getLengthaffected1() + ", "  + location2 + ", " + carriageWay2 + ", " + ms.getLengthaffected2() + ")";
 	      LOGGER.finest(insertSql);
 	      int rowsAdded = st.executeUpdate(insertSql);
@@ -173,10 +194,10 @@ public class DatabaseManager implements Serializable {
 	    }
 	    rs.close();
 	    st.close();
-	} catch (SQLException ex) {
-		ex.printStackTrace();
-		throw new RuntimeException("Problem adding measurement site to the database; " + ex.getMessage());
-	}
+  	} catch (SQLException ex) {
+  		ex.printStackTrace();
+  		throw new RuntimeException("Problem adding measurement site to the database; " + ex.getMessage());
+    }
     return nrOfRowsAdded;
   }
 
@@ -224,11 +245,113 @@ public class DatabaseManager implements Serializable {
       }
       rs.close();
       st.close();
-  } catch (SQLException ex) {
-    ex.printStackTrace();
-    throw new RuntimeException("Problem adding weather station to the database; " + ex.getMessage());
-  }
+    } catch (SQLException ex) {
+      ex.printStackTrace();
+      throw new RuntimeException("Problem adding weather station to the database; " + ex.getMessage());
+    }
     return nrOfRowsAdded;
+  }
+
+  public int linkAllMeasurementSitesWithClosestWeatherStation() throws RuntimeException {
+    int nrOfRowsAdded = 0;
+    try {
+      getConnection();
+      Statement st = mConnection.createStatement();
+      String selectSql = "select measurementsite.id as msid, (select weatherstation.id as wsid from weatherstation order by measurementsite.location <-> weatherstation.location limit 1) from measurementsite;";
+      LOGGER.finest("SQL statement to match measurement sites with their closest weather station: " + selectSql);
+      ResultSet rs = st.executeQuery(selectSql);
+      Map<Integer, Integer> msAndWsIdsToBeAdded = new HashMap<Integer, Integer>();
+      while (rs.next()) {
+        int msid = rs.getInt("msid");
+        int wsid = rs.getInt("wsid");
+        msAndWsIdsToBeAdded.put(msid, wsid);
+      }
+      for (Entry<Integer, Integer> entry : msAndWsIdsToBeAdded.entrySet()) {
+        int msid = entry.getKey();
+        int wsid = entry.getValue();
+        try {
+          String insertSql = "insert into measurementsite_weatherstation_link values(" + msid + ", " + wsid + ");";
+          LOGGER.finest(insertSql);
+          int rowsAdded = st.executeUpdate(insertSql);
+          LOGGER.finest("Rows added: " + rowsAdded);
+          nrOfRowsAdded += rowsAdded;
+        } catch (SQLException ex) {
+          LOGGER.severe("SQL State: " + ex.getSQLState());
+          if (ex.getSQLState().equalsIgnoreCase("23505")) { // Unique violation, see Postgres error codes
+            LOGGER.severe("Duplicate key found in measurementsite_weatherstation_link (msid, wsid): (" + msid + ", " + wsid + ")");
+          } else {
+            throw new SQLException("Problem adding combination of measurement site id and weather station id to link table; " + ex.getMessage());
+          }
+        }
+      }
+      rs.close();
+      st.close();
+    } catch (SQLException ex) {
+      ex.printStackTrace();
+      throw new RuntimeException("Problem adding weather station to the database; " + ex.getMessage());
+    }
+    return nrOfRowsAdded;
+  }
+
+  public int linkMeasurementSiteWithClosestWeatherStation(MeasurementSite ms) throws RuntimeException {
+    int nrOfRowsAdded = 0;
+    try {
+      getConnection();
+      Statement st = mConnection.createStatement();
+      String selectSql = "select measurementsite.id as msid, weatherstation.id as wsid from measurementsite,weatherstation where measurementside.ndwid = '" + ms.getNdwid() + "' order by measurementsite.location <-> weatherstation.location limit 1;";
+      LOGGER.finest("SQL statement to match measurement site with its closest weather station: " + selectSql);
+      ResultSet rs = st.executeQuery(selectSql);
+      while (rs.next()) {
+        int msid = rs.getInt("msid");
+        int wsid = rs.getInt("wsid");
+        try {
+          String insertSql = "insert into measurementsite_weatherstation_link values(" + msid + ", " + wsid + ");";
+          LOGGER.finest(insertSql);
+          int rowsAdded = st.executeUpdate(insertSql);
+          LOGGER.finest("Rows added: " + rowsAdded);
+          nrOfRowsAdded += rowsAdded;
+        } catch (SQLException ex) {
+          LOGGER.severe("SQL State: " + ex.getSQLState());
+          if (ex.getSQLState().equalsIgnoreCase("23505")) { // Unique violation, see Postgres error codes
+            LOGGER.severe("Duplicate key found in measurementsite_weatherstation_link (msid, wsid): (" + msid + ", " + wsid + ")");
+          } else {
+            throw new SQLException("Problem adding combination of measurement site id and weather station id to link table; " + ex.getMessage());
+          }
+        }
+      }
+      rs.close();
+      st.close();
+    } catch (SQLException ex) {
+      ex.printStackTrace();
+      throw new RuntimeException("Problem adding weather station to the database; " + ex.getMessage());
+    }
+    return nrOfRowsAdded;
+  }
+
+  public List<WeatherStation> getAllWeatherStations() throws RuntimeException {
+    List<WeatherStation> wsList = new ArrayList();
+    try {
+      getConnection();
+      Statement st = mConnection.createStatement();
+      String allWeatherStationsSql = "SELECT knmiid,name,st_x(location) as lat,st_y(location) as lon,altitude from weatherstation;";
+      ResultSet rs = st.executeQuery(allWeatherStationsSql);
+      while (rs.next()) {
+        int knmiid = rs.getInt("knmiid");
+        String name = rs.getString("name");
+        float lat = rs.getFloat("lat");
+        float lon = rs.getFloat("lon");
+        float altitude = rs.getFloat("altitude");
+        WeatherStation ws = new WeatherStation(knmiid, name, lat, lon, altitude);
+        wsList.add(ws);
+      }
+      rs.close();
+      st.close();
+      closeConnection();
+    } catch (SQLException ex) {
+      ex.printStackTrace();
+      throw new RuntimeException("Problem getting all weather stations from the database;" + ex.getMessage());
+    }
+    return wsList;
   }
 
 }
