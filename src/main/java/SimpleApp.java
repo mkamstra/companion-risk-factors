@@ -361,6 +361,10 @@ public class SimpleApp {
       List<WeatherStation> wsList = dbMgr.getAllWeatherStations();
       KmlGenerator kmlGenerator = new KmlGenerator();
       kmlGenerator.generateKmlForWeatherStations(wsList);
+      List<MeasurementSite> msList = dbMgr.getAllMeasurementSites();
+      kmlGenerator.generateKmlForMeasurementSites(msList);
+      List<MeasurementSite> msPartialList = dbMgr.getMeasurementSitesWithinArea(51.8f, 4.0f, 52.5f, 5.5f);
+      kmlGenerator.generateKmlForMeasurementSites(msPartialList);
     }
   }
 

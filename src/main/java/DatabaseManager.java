@@ -354,4 +354,64 @@ public class DatabaseManager implements Serializable {
     return wsList;
   }
 
+  public List<MeasurementSite> getAllMeasurementSites() throws RuntimeException {
+    List<MeasurementSite> msList = new ArrayList();
+    try {
+      getConnection();
+      Statement st = mConnection.createStatement();
+      String allMeasurementSitesSql = "SELECT ndwid,name,st_x(location) as lat,st_y(location) as lon from measurementsite;";
+      ResultSet rs = st.executeQuery(allMeasurementSitesSql);
+      while (rs.next()) {
+        String ndwid = rs.getString("ndwid");
+        String name = rs.getString("name");
+        float lat = rs.getFloat("lat");
+        float lon = rs.getFloat("lon");
+        MeasurementSite ms = new MeasurementSite();
+        ms.setNdwid(ndwid);
+        ms.setName(name);
+        ms.setLatitude(lat);
+        ms.setLongitude(lon);
+        msList.add(ms);
+      }
+      rs.close();
+      st.close();
+      closeConnection();
+    } catch (SQLException ex) {
+      ex.printStackTrace();
+      throw new RuntimeException("Problem getting all traffic measurement sites from the database;" + ex.getMessage());
+    }
+    return msList;
+  }
+
+  public List<MeasurementSite> getMeasurementSitesWithinArea(float pBottomLat, float pLeftLon, float pTopLat, float pRightLon) throws RuntimeException {
+    List<MeasurementSite> msList = new ArrayList();
+    try {
+      getConnection();
+      Statement st = mConnection.createStatement();
+      String allMeasurementSitesSql = "SELECT ndwid,name,st_x(location) as lat,st_y(location) as lon from measurementsite where location && st_makeenvelope(" +
+          pBottomLat + ", " + pLeftLon + ", " + pTopLat + ", " + pRightLon + ");";
+      LOGGER.finest("Query to get measurement sites within area: " + allMeasurementSitesSql);
+      ResultSet rs = st.executeQuery(allMeasurementSitesSql);
+      while (rs.next()) {
+        String ndwid = rs.getString("ndwid");
+        String name = rs.getString("name");
+        float lat = rs.getFloat("lat");
+        float lon = rs.getFloat("lon");
+        MeasurementSite ms = new MeasurementSite();
+        ms.setNdwid(ndwid);
+        ms.setName(name);
+        ms.setLatitude(lat);
+        ms.setLongitude(lon);
+        msList.add(ms);
+      }
+      rs.close();
+      st.close();
+      closeConnection();
+    } catch (SQLException ex) {
+      ex.printStackTrace();
+      throw new RuntimeException("Problem getting all traffic measurement sites from the database;" + ex.getMessage());
+    }
+    return msList;
+  }
+
 }
