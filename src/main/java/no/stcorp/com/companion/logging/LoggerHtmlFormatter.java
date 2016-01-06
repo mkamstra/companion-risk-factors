@@ -1,3 +1,5 @@
+package no.stcorp.com.companion.logging;
+
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.logging.Formatter;

@@ -1,3 +1,5 @@
+package no.stcorp.com.companion.xml;
+
 import org.w3c.dom.*;
 import java.util.*;
 

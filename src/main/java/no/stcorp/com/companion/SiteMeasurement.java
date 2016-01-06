@@ -1,3 +1,5 @@
+package no.stcorp.com.companion;
+
 import java.util.List;
 import java.util.ArrayList;
 import java.time.Instant;

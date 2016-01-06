@@ -1,3 +1,9 @@
+package no.stcorp.com.companion.xml;
+
+import no.stcorp.com.companion.database.DatabaseManager;
+import no.stcorp.com.companion.logging.*;
+import no.stcorp.com.companion.traffic.*;
+
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.*;
 import javax.xml.parsers.*;
@@ -9,9 +15,10 @@ import java.sql.*;
 import java.util.*;
 
 
-public class ParseCurrentMeasurementXml implements Function<String, List<MeasurementSite>> {
+public class TrafficNDWCurrentMeasurementParser implements Function<String, List<MeasurementSite>> {
 	//private final static Logger LOGGER = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
-  private final static Logger LOGGER = Logger.getLogger(ParseCurrentMeasurementXml.class.getName());
+  private final static Logger LOGGER = Logger.getLogger(TrafficNDWCurrentMeasurementParser.class.getName());
+  private static final long serialVersionUID = 2L;
 
   /**
    * A map containing the different ndw types as they are encoded in the database. To insert measurements 
@@ -20,9 +27,9 @@ public class ParseCurrentMeasurementXml implements Function<String, List<Measure
   private Map<String, Integer> mNdwTypes = new HashMap<String, Integer>();
   private DatabaseManager mDbMgr = null;
 
-	public ParseCurrentMeasurementXml() {
+	public TrafficNDWCurrentMeasurementParser() {
 		try {
-			CompanionLogger.setup(ParseCurrentMeasurementXml.class.getName());
+			CompanionLogger.setup(TrafficNDWCurrentMeasurementParser.class.getName());
 			LOGGER.setLevel(Level.INFO);
       mDbMgr = DatabaseManager.getInstance();
       mNdwTypes = mDbMgr.getNdwTypes();

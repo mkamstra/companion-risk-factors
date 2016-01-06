@@ -1,3 +1,5 @@
+package no.stcorp.com.companion.weather;
+
 import java.time.Instant;
 
 /**

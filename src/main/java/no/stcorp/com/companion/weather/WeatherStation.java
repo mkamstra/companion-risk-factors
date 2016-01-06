@@ -1,3 +1,5 @@
+package no.stcorp.com.companion.weather;
+
 public class WeatherStation {
 	private int knmiId;
 	private String name;

@@ -1,3 +1,5 @@
+package no.stcorp.com.companion;
+
 public class MeasuredValue {
 	private int mIndex;
 	private String mType;

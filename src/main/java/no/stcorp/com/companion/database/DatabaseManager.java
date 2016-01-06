@@ -1,3 +1,10 @@
+package no.stcorp.com.companion.database;
+
+import no.stcorp.com.companion.logging.*;
+import no.stcorp.com.companion.traffic.*;
+import no.stcorp.com.companion.weather.*;
+
+
 import java.io.Serializable;
 import java.io.IOException;
 import java.sql.*;
@@ -7,6 +14,7 @@ import java.util.logging.*;
 
 public class DatabaseManager implements Serializable {
   private final static Logger LOGGER = Logger.getLogger(DatabaseManager.class.getName());
+  private static final long serialVersionUID = 1L;
   private static DatabaseManager mInstance = null;
   private static Connection mConnection = null;
 
@@ -14,7 +22,7 @@ public class DatabaseManager implements Serializable {
   	// Intentionally private to ensure singleton pattern
     try {
       CompanionLogger.setup(DatabaseManager.class.getName());
-      LOGGER.setLevel(Level.FINEST);
+      LOGGER.setLevel(Level.FINE);
     } catch (IOException ex) {
       ex.printStackTrace();
       throw new RuntimeException("Problem creating log files;" + ex.getMessage());
@@ -276,10 +284,10 @@ public class DatabaseManager implements Serializable {
           LOGGER.finest("Rows added: " + rowsAdded);
           nrOfRowsAdded += rowsAdded;
         } catch (SQLException ex) {
-          LOGGER.severe("SQL State: " + ex.getSQLState());
           if (ex.getSQLState().equalsIgnoreCase("23505")) { // Unique violation, see Postgres error codes
-            LOGGER.severe("Duplicate key found in measurementsite_weatherstation_link (msid, wsid): (" + msid + ", " + wsid + ")");
+            LOGGER.finest("Duplicate key found in measurementsite_weatherstation_link (msid, wsid): (" + msid + ", " + wsid + ")");
           } else {
+            LOGGER.severe("SQL State: " + ex.getSQLState());
             throw new SQLException("Problem adding combination of measurement site id and weather station id to link table; " + ex.getMessage());
           }
         }
@@ -311,10 +319,10 @@ public class DatabaseManager implements Serializable {
           LOGGER.finest("Rows added: " + rowsAdded);
           nrOfRowsAdded += rowsAdded;
         } catch (SQLException ex) {
-          LOGGER.severe("SQL State: " + ex.getSQLState());
           if (ex.getSQLState().equalsIgnoreCase("23505")) { // Unique violation, see Postgres error codes
-            LOGGER.severe("Duplicate key found in measurementsite_weatherstation_link (msid, wsid): (" + msid + ", " + wsid + ")");
+            LOGGER.finest("Duplicate key found in measurementsite_weatherstation_link (msid, wsid): (" + msid + ", " + wsid + ")");
           } else {
+            LOGGER.severe("SQL State: " + ex.getSQLState());
             throw new SQLException("Problem adding combination of measurement site id and weather station id to link table; " + ex.getMessage());
           }
         }
@@ -329,7 +337,7 @@ public class DatabaseManager implements Serializable {
   }
 
   public List<WeatherStation> getAllWeatherStations() throws RuntimeException {
-    List<WeatherStation> wsList = new ArrayList();
+    List<WeatherStation> wsList = new ArrayList<WeatherStation>();
     try {
       getConnection();
       Statement st = mConnection.createStatement();
@@ -355,7 +363,7 @@ public class DatabaseManager implements Serializable {
   }
 
   public List<MeasurementSite> getAllMeasurementSites() throws RuntimeException {
-    List<MeasurementSite> msList = new ArrayList();
+    List<MeasurementSite> msList = new ArrayList<MeasurementSite>();
     try {
       getConnection();
       Statement st = mConnection.createStatement();
@@ -384,7 +392,7 @@ public class DatabaseManager implements Serializable {
   }
 
   public List<MeasurementSite> getMeasurementSitesWithinArea(float pBottomLat, float pLeftLon, float pTopLat, float pRightLon) throws RuntimeException {
-    List<MeasurementSite> msList = new ArrayList();
+    List<MeasurementSite> msList = new ArrayList<MeasurementSite>();
     try {
       getConnection();
       Statement st = mConnection.createStatement();
@@ -412,6 +420,102 @@ public class DatabaseManager implements Serializable {
       throw new RuntimeException("Problem getting all traffic measurement sites from the database;" + ex.getMessage());
     }
     return msList;
+  }
+
+  /**
+   * Return the measurement points matching the NDW id pattern
+   */
+  public List<MeasurementSite> getMeasurementPointsForNdwidPattern(String pNdwidPattern) {
+    List<MeasurementSite> msList = new ArrayList<MeasurementSite>();
+    try {
+      getConnection();
+      Statement st = mConnection.createStatement();
+      String getMeasurementSitesSql = "select ndwid,name,st_x(location) as lat,st_y(location) as lon from measurementsite where ndwid like '" + pNdwidPattern + "';";
+      LOGGER.finest("Query to get measurement sites matching the NDW id pattern: " + getMeasurementSitesSql);
+      ResultSet rs = st.executeQuery(getMeasurementSitesSql);
+      while (rs.next()) {
+        String ndwid = rs.getString("ndwid");
+        String name = rs.getString("name");
+        float lat = rs.getFloat("lat");
+        float lon = rs.getFloat("lon");
+        MeasurementSite ms = new MeasurementSite();
+        ms.setNdwid(ndwid);
+        ms.setName(name);
+        ms.setLatitude(lat);
+        ms.setLongitude(lon);
+        msList.add(ms);
+      }
+      rs.close();
+      st.close();
+      closeConnection();
+    } catch (SQLException ex) {
+      ex.printStackTrace();
+      throw new RuntimeException("Problem getting traffic measurement sites for a specified NDW id pattern from the database;" + ex.getMessage());
+    }
+    return msList;
+  }
+
+  /**
+   * For a given traffic measurement point (MP) mathcing the NDW id pattern:
+   * Get the related weather station (WS) for each MP by the KNMI id
+   */
+  public Map<String, Integer> getWeatherStationForMeasurementPoints(String pNdwidPattern) {
+    Map<String, Integer> weatherStationForMeasurementPoints = new HashMap<String, Integer>();
+    try {
+      getConnection();
+      Statement st = mConnection.createStatement();
+      String getMeasurementSitesSql = "select id, ndwid from measurementsite where ndwid like '" + pNdwidPattern + "';";
+      LOGGER.finest("Query to get measurement sites matching the NDW id pattern: " + getMeasurementSitesSql);
+      ResultSet rs = st.executeQuery(getMeasurementSitesSql);
+      Map<Integer, String> selectedNdws = new HashMap<Integer, String>();
+      while (rs.next()) {
+        int msid = rs.getInt("id");
+        String ndwid = rs.getString("ndwid");
+        selectedNdws.put(msid, ndwid);
+      }
+      rs.close();
+      String getWeatherStationIdsForMps = "select msid, wsid from measurementsite_weatherstation_link where msid in (select id from measurementsite where ndwid like '" + pNdwidPattern + "');";
+      LOGGER.finest("Query to get the matching weather station ids: " + getWeatherStationIdsForMps);
+      rs = st.executeQuery(getWeatherStationIdsForMps);
+      Map<Integer, Integer> mappingMsWsIds = new HashMap<Integer, Integer>();
+      while (rs.next()) {
+        int msid = rs.getInt("msid");
+        int wsid = rs.getInt("wsid");
+        mappingMsWsIds.put(msid, wsid);
+      }
+      rs.close();
+      String getWeatherStationKnmiIdsForMps = "select id, knmiid from weatherstation where id in (select wsid from measurementsite_weatherstation_link where msid in (select id from measurementsite where ndwid like '" + pNdwidPattern + "'));";
+      LOGGER.finest("Query to get the matching weather station KNMI ids: " + getWeatherStationKnmiIdsForMps);
+      rs = st.executeQuery(getWeatherStationKnmiIdsForMps);
+      Map<Integer, Integer> selectedKnmiIds = new HashMap<Integer, Integer>();
+      while (rs.next()) {
+        int wsid = rs.getInt("id");
+        int knmiid = rs.getInt("knmiid");
+        selectedKnmiIds.put(wsid, knmiid);
+      }
+      rs.close();
+      st.close();
+      closeConnection();
+      for (Entry<Integer, String> ndw : selectedNdws.entrySet()) {
+        String ndwid = ndw.getValue();
+        int msid = ndw.getKey();
+        if (mappingMsWsIds.containsKey(msid)) {
+          int wsid = mappingMsWsIds.get(msid);
+          if (selectedKnmiIds.containsKey(wsid)) {
+            int knmiid = selectedKnmiIds.get(wsid);
+            weatherStationForMeasurementPoints.put(ndwid, knmiid);
+          } else {
+            LOGGER.severe("Weather station id " + wsid + " does not exist in table weatherstation");
+          }
+        } else {
+          LOGGER.severe("Measurement site id " + msid + " does not exists in table measurementsite_weatherstation_link");
+        }
+      }
+    } catch (SQLException ex) {
+      ex.printStackTrace();
+      throw new RuntimeException("Problem relating traffic measurement sites to weather stations from the database;" + ex.getMessage());
+    }
+    return weatherStationForMeasurementPoints;
   }
 
 }

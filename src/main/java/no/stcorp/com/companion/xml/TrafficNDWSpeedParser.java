@@ -1,3 +1,9 @@
+package no.stcorp.com.companion.xml;
+
+import no.stcorp.com.companion.database.DatabaseManager;
+import no.stcorp.com.companion.logging.*;
+import no.stcorp.com.companion.*;
+
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.*;
 import java.util.*;
@@ -8,15 +14,16 @@ import java.io.*;
 import java.util.logging.*;
 
 
-public class ParseTrafficSpeedXml implements Function<String, List<SiteMeasurement>> {
+public class TrafficNDWSpeedParser implements Function<String, List<SiteMeasurement>> {
 	//private final static Logger LOGGER = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
-	private final static Logger LOGGER = Logger.getLogger(ParseTrafficSpeedXml.class.getName());
+	private final static Logger LOGGER = Logger.getLogger(TrafficNDWSpeedParser.class.getName());
+  private static final long serialVersionUID = 3L;
   private DatabaseManager mDbMgr = null;
   private Map<String, Integer> mMeasurementSiteIds = new HashMap<String,Integer>();
 
-	public ParseTrafficSpeedXml() {
+	public TrafficNDWSpeedParser() {
 		try {
-			CompanionLogger.setup(ParseTrafficSpeedXml.class.getName());
+			CompanionLogger.setup(TrafficNDWSpeedParser.class.getName());
 			LOGGER.setLevel(Level.INFO);
       mDbMgr = DatabaseManager.getInstance();
       mMeasurementSiteIds = mDbMgr.getAllMeasurementSiteIdsFromDb();

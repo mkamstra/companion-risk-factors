@@ -1,3 +1,5 @@
+package no.stcorp.com.companion.traffic;
+
 public class MeasurementSite {
 	private String ndwid;
 	private String name;

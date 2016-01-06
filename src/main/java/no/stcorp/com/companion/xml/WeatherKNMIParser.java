@@ -1,3 +1,9 @@
+package no.stcorp.com.companion.xml;
+
+import no.stcorp.com.companion.database.DatabaseManager;
+import no.stcorp.com.companion.logging.*;
+import no.stcorp.com.companion.weather.*;
+
 import java.util.*;
 import java.util.logging.*;
 
@@ -24,6 +30,7 @@ import javax.net.ssl.HttpsURLConnection;
 public class WeatherKNMIParser implements Function<String, String> {
 
 	private final static Logger LOGGER = Logger.getLogger(WeatherKNMIParser.class.getName());
+  	private static final long serialVersionUID = 4L;
 
  	private final String USER_AGENT = "Mozilla/5.0";
 

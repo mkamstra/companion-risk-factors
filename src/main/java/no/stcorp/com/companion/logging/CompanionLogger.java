@@ -1,3 +1,5 @@
+package no.stcorp.com.companion.logging;
+
 import java.io.IOException;
 import java.util.logging.*;
 

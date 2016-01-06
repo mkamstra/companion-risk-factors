@@ -1,3 +1,9 @@
+package no.stcorp.com.companion.kml;
+
+import no.stcorp.com.companion.logging.*;
+import no.stcorp.com.companion.traffic.*;
+import no.stcorp.com.companion.weather.*;
+
 import java.io.*;
 import java.util.*;
 import java.util.logging.*;
@@ -121,7 +127,7 @@ public class KmlGenerator {
       Element wistyle = doc.createElement("IconStyle");
       wistyle.setAttribute("id", "weatherIcon");
       Element wscale = doc.createElement("scale");
-      wscale.appendChild(doc.createTextNode("0.2"));
+      wscale.appendChild(doc.createTextNode("0.4"));
 
       Element wicon = doc.createElement("Icon");
       Element wiconhref = doc.createElement("href");
@@ -133,7 +139,7 @@ public class KmlGenerator {
       wistyle.appendChild(wicon);
       dnode.appendChild(wstyle);
 
-      System.out.println("Number of measurement sites: " + measurementSites.size());
+      LOGGER.info("Number of measurement sites: " + measurementSites.size());
       for (MeasurementSite measurementSite : measurementSites) {
         Element placemark = doc.createElement("Placemark");
         dnode.appendChild(placemark);
