@@ -126,7 +126,7 @@ public class CompanionRiskFactors {
     System.out.println("Gzipped files will be downloaded to: " + rootDir);
 
     System.out.println("Downloading current measurements containing the measurement locations");
-    String measurementFileName = "measurement_current.gz";
+    String measurementFileName = "measurement_current.xml.gz";
     String measurementZipUrl = ftpUrl + measurementFileName;
     sc.addFile(measurementZipUrl);
     String measurementFilePath = SparkFiles.get(measurementFileName);
@@ -202,8 +202,9 @@ public class CompanionRiskFactors {
    */
   public static void getTrafficNDWSpeed(String ftpUrl) {
     System.out.println("Downloading traffic speed");
-    String trafficFileName = "trafficspeed.gz";
+    String trafficFileName = "trafficspeed_2016_01_08_13_27_55_535.xml.gz";
     String trafficZipUrl = ftpUrl + trafficFileName;
+    System.out.println("Traffic zip URL: " + trafficZipUrl);
     sc.addFile(trafficZipUrl);
     String trafficFilePath = SparkFiles.get(trafficFileName);
     System.out.println("Traffic file path: " + trafficFilePath);
@@ -364,7 +365,9 @@ public class CompanionRiskFactors {
    *    /home/osboxes/.m2/repository/org/apache/httpcomponents/httpclient/4.5.1/httpclient-4.5.1.jar,
    *    /home/osboxes/.m2/repository/org/apache/httpcomponents/httpcore/4.4.4/httpcore-4.4.4.jar,
    *    /home/osboxes/.m2/repository/commons-cli/commons-cli/1.3.1/commons-cli-1.3.1.jar --master local[*] 
-   *    target/CompanionWeatherTraffic-0.1.jar -se -tcm -ts -wo -link -kml
+   *    target/CompanionWeatherTraffic-0.1.jar -se 
+   *
+   *    or one of the options: -tcm -ts -wo -link -kml -proc
    *
    * Note the --jars to indicate the additional jars that need to be loaded 
    * The driver-memory can be set to a larger value than the default 1g to avoid Java heap space problems
@@ -387,7 +390,9 @@ public class CompanionRiskFactors {
        * /home/osboxes/Tools/spark-1.5.1/bin/spark-submit --driver-memory 2g --class "CompanionRiskFactors" --master local[*] target/CompanionWeatherTraffic-0.1.jar
        */
     sc = new JavaSparkContext(conf); // JavaSparkContext object tells Spark how to access a cluster
-    String ftpUrl = "ftp://83.247.110.3/";
+    String ftpUrl = "ftp://83.247.110.3/"; // Old URL valid until 2016/01/15
+    ftpUrl = "ftp://opendata.ndw.nu/"; // New URL valid from 2016/01/01 (15 days overlap)
+    ftpUrl = "ftp://companion:1d1ada@192.168.1.33/Projects/companion/downloadedData/NDW/2016_01_08/"; // Data downloaded locally due to awkard interface for downloading historical data on NDW
 
     Options options = new Options();
     options.addOption("se", false, "Run some Spark examples to see if Spark is functioning as expected");
@@ -406,7 +411,7 @@ public class CompanionRiskFactors {
       System.exit(-1);
     }
     try {
-      CommandLineParser parser = new PosixParser();
+      CommandLineParser parser = new PosixParser(); // Should be using the DefaultParser, but this is generating an exception: Exception in thread "main" java.lang.IllegalAccessError: tried to access method org.apache.commons.cli.Options.getOptionGroups()Ljava/util/Collection; from class org.apache.commons.cli.DefaultParser
       CommandLine cmd = parser.parse(options, args, true);
 
       if (cmd.hasOption("se")) {
