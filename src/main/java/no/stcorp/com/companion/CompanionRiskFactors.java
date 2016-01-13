@@ -200,10 +200,24 @@ public class CompanionRiskFactors {
   /**
    * Get the speed traffic data from the NDW site
    */
-  public static Map<String, List<SiteMeasurement>> getTrafficNDWSpeed(String ftpUrl, String ndwIdPattern) {
+  public static Map<String, List<SiteMeasurement>> getTrafficNDWSpeed(String ftpUrl, String ndwIdPattern, Instant startDate, Instant endDate) {
     Map<String, List<SiteMeasurement>> measurementsPerSite = new HashMap<String, List<SiteMeasurement>>();
 
     System.out.println("Downloading traffic speed");
+    /**
+     * Find the appropriate directory: before January 14th, data were downloaded manually as historical data, providing different 
+     * naming conventions as well as different files. From the 14th on the actual traffic data is downloaded automatically.
+     * < 20160114: 
+     *      Folder name: dd-MM-yyyy
+     *      Files: HHmm_Traveltime.gz, HHmm_Trafficspeed.gz
+     * >= 20160114: 
+     *      Folder name: yyyy_MM_dd
+     *      Files: wegwerkzaamheden_yyyy_MM_dd_HH_mm_ss_sss.xml.gz, trafficspeed_yyyy_MM_dd_HH_mm_ss_sss.xml.gz, 
+     *             traveltime_yyyy_MM_dd_HH_mm_ss_sss.xml.gz, srti_yyyy_MM_dd_HH_mm_ss_sss.xml.gz,
+     *             measurement_current_yyyy_MM_dd_HH_mm_ss_sss.xml.gz, gebeurtenisinfo_yyyy_MM_dd_HH_mm_ss_sss.xml.gz,
+     *             incidents_yyyy_MM_dd_HH_mm_ss_sss.xml.gz, measurements_yyyy_MM_dd_HH_mm_ss_sss.xml.gz,
+     *             brugopeningen_yyyy_MM_dd_HH_mm_ss_sss.xml.gz
+     */
     String trafficFileName = "trafficspeed_2016_01_08_16_32_38_230.xml.gz";
     String trafficZipUrl = ftpUrl + trafficFileName;
     System.out.println("Traffic zip URL: " + trafficZipUrl);
@@ -276,17 +290,19 @@ public class CompanionRiskFactors {
   /**
    * Get the weather observations from the KNMI website. Is used for checking if all the weather
    * stations are present in the database. If not, they will be added.
+   * Both startDate and endDate in format yyyyMMddHH 
+   * HH represents the hour that was just finished (i.e. 15 implies 14.00 - 15.00)
    */
-  public static Map<String, List<String>> getWeatherKNMIObservations(String ndwIdPattern) {
-    System.out.println("Downloading weather");
+  public static Map<String, List<String>> getWeatherKNMIObservations(String ndwIdPattern, String startDate, String endDate) {
+    System.out.println("Downloading weather for ndw id pattern: " + ndwIdPattern + ", start date: " + startDate + ", end date: " + endDate);
     Map<String, List<String>> weatherObservationsForMeasurementSite = new HashMap<String, List<String>>();
     String url = "http://projects.knmi.nl/klimatologie/uurgegevens/getdata_uur.cgi";
     HttpClient client = HttpClientBuilder.create().build();
     HttpPost post = new HttpPost(url);
     String USER_AGENT = "Mozilla/5.0";
     List<NameValuePair> urlParameters = new ArrayList<NameValuePair>();
-    urlParameters.add(new BasicNameValuePair("start", "2016010816"));
-    urlParameters.add(new BasicNameValuePair("end", "2016010817"));
+    urlParameters.add(new BasicNameValuePair("start", startDate));
+    urlParameters.add(new BasicNameValuePair("end", endDate));
     urlParameters.add(new BasicNameValuePair("vars", "ALL"));
     urlParameters.add(new BasicNameValuePair("stns", "ALL"));
     post.setHeader("User-Agent", USER_AGENT);
@@ -420,13 +436,30 @@ public class CompanionRiskFactors {
       CommandLine cmd = parser.parse(options, args, true);
 
       String ndwIdPattern = "RWS01_MONIBAS_0131hrl00%";
+      String startDateString = "20160108150000";
+      String endDateString = "20160108170000";
+      DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault());
+      Instant startDate = formatter.parse(startDateString, ZonedDateTime::from).toInstant();
+      Instant endDate = formatter.parse(endDateString, ZonedDateTime::from).toInstant();
+      DateTimeFormatter formatterWeatherKNMI = DateTimeFormatter.ofPattern("yyyyMMddHH").withZone(ZoneId.systemDefault());
+      String startDateStringKNMI = formatterWeatherKNMI.format(startDate);
+      String endDateStringKNMI = formatterWeatherKNMI.format(endDate);
+      System.out.println("Start date KNMI: " + startDateStringKNMI + " - end date KNMI: " + endDateStringKNMI);
+      try {
+        System.out.println("Putting app to sleep for 10 seconds again");
+        Thread.sleep(10000);
+      } catch (InterruptedException ex) {
+        System.out.println("Something went wrong putting the app to sleep for 10 seconds again");
+        ex.printStackTrace();
+        Thread.currentThread().interrupt();
+      }
 
       if (cmd.hasOption("se")) {
         runSparkExamples();
       } else if (cmd.hasOption("tcm")) {
         getTrafficNDWCurrentMeasurements(ftpUrl);
       } else if (cmd.hasOption("ts")) {
-        Map<String, List<SiteMeasurement>> speedMeasurements = getTrafficNDWSpeed(ftpUrl, ndwIdPattern);
+        Map<String, List<SiteMeasurement>> speedMeasurements = getTrafficNDWSpeed(ftpUrl, ndwIdPattern, startDate, endDate);
         for (Entry<String, List<SiteMeasurement>> speedEntry : speedMeasurements.entrySet()) {
           String ndwId = speedEntry.getKey();
           List<SiteMeasurement> sms = speedEntry.getValue();
@@ -438,7 +471,7 @@ public class CompanionRiskFactors {
           }
         }
       } else if (cmd.hasOption("wo")) {
-        getWeatherKNMIObservations(ndwIdPattern);
+        getWeatherKNMIObservations(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
       } else if (cmd.hasOption("link")) {
         // Add a link between all measurement sites and weather stations. Only needs to be done when measurement site and 
         // weather station tables have been filled without adding these links. Normally not needed to do this.
@@ -458,8 +491,8 @@ public class CompanionRiskFactors {
         kmlGenerator.generateKmlForMeasurementSites(msPatternMatchingList);
       } else if (cmd.hasOption("proc")) {
         getTrafficNDWCurrentMeasurements(ftpUrl);
-        Map<String, List<SiteMeasurement>>  currentSpeedMeasurementsForMeasurementsSites = getTrafficNDWSpeed(ftpUrl, ndwIdPattern);
-        Map<String, List<String>> weatherObservationsForMeasurementSites = getWeatherKNMIObservations(ndwIdPattern);
+        Map<String, List<SiteMeasurement>>  currentSpeedMeasurementsForMeasurementsSites = getTrafficNDWSpeed(ftpUrl, ndwIdPattern, startDate, endDate);
+        Map<String, List<String>> weatherObservationsForMeasurementSites = getWeatherKNMIObservations(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
         for (Entry<String, List<SiteMeasurement>> speedEntry : currentSpeedMeasurementsForMeasurementsSites.entrySet()) {
           String ndwId = speedEntry.getKey();
           List<SiteMeasurement> sms = speedEntry.getValue();
