@@ -24,7 +24,7 @@ public class TrafficNDWSpeedParser implements Function<String, List<SiteMeasurem
 	public TrafficNDWSpeedParser() {
 		try {
 			CompanionLogger.setup(TrafficNDWSpeedParser.class.getName());
-			LOGGER.setLevel(Level.INFO);
+			LOGGER.setLevel(Level.FINE);
       mDbMgr = DatabaseManager.getInstance();
       mMeasurementSiteIds = mDbMgr.getAllMeasurementSiteIdsFromDb();
 		} catch (IOException ex) {
@@ -71,6 +71,7 @@ public class TrafficNDWSpeedParser implements Function<String, List<SiteMeasurem
           	Element siteReferenceElement = (Element) siteReferenceNodes.item(0);
           	String siteReferenceIdString = siteReferenceElement.getAttribute("id");
           	int siteReferenceDbId = -1;
+            LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;site reference id: " + siteReferenceIdString);
           	if (mMeasurementSiteIds.containsKey(siteReferenceIdString)) {
           		siteReferenceDbId = mMeasurementSiteIds.get(siteReferenceIdString);
           	}
@@ -78,13 +79,16 @@ public class TrafficNDWSpeedParser implements Function<String, List<SiteMeasurem
           		LOGGER.finest("&nbsp;&nbsp;Measurement site reference id: " + siteReferenceIdString + ", db id: " + siteReferenceDbId);
           	} else {
           		LOGGER.severe("&nbsp;&nbsp;Measurement site reference id: " + siteReferenceIdString + " not found in database");
+              continue; // No need to create an element from this
           	}
 
             NodeList timeDefaultNodes = siteMeasurementElement.getElementsByTagName("measurementTimeDefault");
             if (timeDefaultNodes.getLength() > 1) {
               LOGGER.severe("&nbsp;&nbsp;siteMeasurements " + i + " has more than one node measurementTimeDefault");
+              continue;
             } else if (timeDefaultNodes.getLength() < 1) {
               LOGGER.severe("&nbsp;&nbsp;siteMeasurements " + i + " has no node measurementTimeDefault");
+              continue;
             } else {
               String timeDefault = XmlUtilities.getCharacterDataFromElement((Element) timeDefaultNodes.item(0));
             	LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Measurement time default: " + timeDefault);
@@ -128,7 +132,6 @@ public class TrafficNDWSpeedParser implements Function<String, List<SiteMeasurem
                         Element vehicleFlowRate = (Element) vehicleFlowRateNodes.item(0);
                         String flowRateString = XmlUtilities.getCharacterDataFromElement(vehicleFlowRate);
           	            LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Flow rate: " + flowRateString);
-
                         double flowRate = -1.0;
                         try {
                         	flowRate = Double.parseDouble(flowRateString);
@@ -146,8 +149,7 @@ public class TrafficNDWSpeedParser implements Function<String, List<SiteMeasurem
                         if (averageVehicleSpeedNodes.getLength() >= 1) {
                           Element speedElement = (Element) averageVehicleSpeedNodes.item(0);
                           String speedString = XmlUtilities.getCharacterDataFromElement(speedElement);
-              	         		LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Speed: " + speedString);
-
+              	         	LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Speed: " + speedString);
 	                       	double speed = -1.0;
 	                      	try {
 	                      		speed = Double.parseDouble(speedString);
@@ -164,6 +166,7 @@ public class TrafficNDWSpeedParser implements Function<String, List<SiteMeasurem
                   }
                 }
               }
+              siteMeasurements.add(sm);
             }
           }
           // try {

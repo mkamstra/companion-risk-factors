@@ -1,11 +1,15 @@
 package no.stcorp.com.companion;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.ArrayList;
-import java.time.Instant;
-import java.time.format.DateTimeParseException;
+import java.time.*;
+import java.time.format.*;
 
-public class SiteMeasurement {
+
+public class SiteMeasurement implements Serializable {
+  	private static final long serialVersionUID = 500L;
+
 	private String mMeasurementSiteReference;
 	private Instant mMeasurementTimeDefault;
 	private List<MeasuredValue> mMeasuredValues;
@@ -33,5 +37,15 @@ public class SiteMeasurement {
 	public void addMeasuredValue(int pIndex, String pName, double pValue) {
 		MeasuredValue measuredValue = new MeasuredValue(pIndex, pName, pValue);
 		mMeasuredValues.add(measuredValue);
+	}
+
+	@Override
+	public String toString() {
+	    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
+	    String measurementValuesString = "";
+	    for (MeasuredValue mv : mMeasuredValues) {
+	    	measurementValuesString += mv + " ";
+	    }
+		return mMeasurementSiteReference + " (" + formatter.format(mMeasurementTimeDefault) + "): " + measurementValuesString;
 	}
 }

@@ -126,7 +126,7 @@ public class CompanionRiskFactors {
     System.out.println("Gzipped files will be downloaded to: " + rootDir);
 
     System.out.println("Downloading current measurements containing the measurement locations");
-    String measurementFileName = "measurement_current.xml.gz";
+    String measurementFileName = "measurement_current_2016_01_08_16_32_35_779.xml.gz";
     String measurementZipUrl = ftpUrl + measurementFileName;
     sc.addFile(measurementZipUrl);
     String measurementFilePath = SparkFiles.get(measurementFileName);
@@ -200,9 +200,11 @@ public class CompanionRiskFactors {
   /**
    * Get the speed traffic data from the NDW site
    */
-  public static void getTrafficNDWSpeed(String ftpUrl) {
+  public static Map<String, List<SiteMeasurement>> getTrafficNDWSpeed(String ftpUrl, String ndwIdPattern) {
+    Map<String, List<SiteMeasurement>> measurementsPerSite = new HashMap<String, List<SiteMeasurement>>();
+
     System.out.println("Downloading traffic speed");
-    String trafficFileName = "trafficspeed_2016_01_08_13_27_55_535.xml.gz";
+    String trafficFileName = "trafficspeed_2016_01_08_16_32_38_230.xml.gz";
     String trafficZipUrl = ftpUrl + trafficFileName;
     System.out.println("Traffic zip URL: " + trafficZipUrl);
     sc.addFile(trafficZipUrl);
@@ -210,8 +212,8 @@ public class CompanionRiskFactors {
     System.out.println("Traffic file path: " + trafficFilePath);
 
     JavaRDD<String> gzData = sc.textFile(trafficFilePath).cache(); // textFile should decompress gzip automatically
-    System.out.println("Output: ");
-    System.out.println(gzData.toString());
+    //System.out.println("Output: ");
+    //System.out.println(gzData.toString());
     /**
      * Another common idiom is attempting to print out the elements of an RDD using rdd.foreach(println) or rdd.map(println). 
      * On a single machine, this will generate the expected output and print all the RDD’s elements. However, in cluster mode, 
@@ -226,19 +228,19 @@ public class CompanionRiskFactors {
 
     // Call the ParseTrafficSpeedXml class which is defined in another class to parse the traffic speed data
     if (gzDataList.size() == 1) {
-      JavaRDD<List<SiteMeasurement>> siteMeasurements = gzData.map(new TrafficNDWSpeedParser()); // Lazy, i.e. not executed before really needed
-      // try {
-      //   System.out.println("Putting app to sleep for 10 seconds to see xml parsing not started yet");
-      //   Thread.sleep(10000);
-      // } catch (InterruptedException ex) {
-      //   System.out.println("Something went wrong putting the app to sleep for 10 seconds");
-      //   ex.printStackTrace();
-      //   Thread.currentThread().interrupt();
-      // }
-      System.out.println("Starting to parse traffic speed xml now");
-
-      // int nrOfRecords = siteMeasurements.reduce(new CountXmlRecords());
-      System.out.println("Total number of records: " + siteMeasurements.count()); // Only here the ParseTrafficSpeedXml is actually called and executed due to the count action
+      String importedFileText = gzDataList.get(0);
+      TrafficNDWSpeedParser parser = new TrafficNDWSpeedParser();
+      List<SiteMeasurement> measurements = parser.call(importedFileText);
+      JavaRDD<SiteMeasurement> measurementsDistributed = sc.parallelize(measurements); // Parallelizing the existing collection
+      System.out.println("Number of speed measurements: " + measurementsDistributed.count());
+      DatabaseManager dbMgr = DatabaseManager.getInstance();
+      List<String> ndwIds = dbMgr.getNdwIdsFromNdwIdPattern(ndwIdPattern);
+      // Now determine the measurements per station
+      for (String ndwId : ndwIds) {
+        // Filter based on ndw id and then collect into a list
+        List<SiteMeasurement> measurementsForSite = measurementsDistributed.filter(ms -> ms.getMeasurementSiteReference().equalsIgnoreCase(ndwId)).collect();
+        measurementsPerSite.put(ndwId, measurementsForSite);
+      }
     }
     // for (String gzDataElt : gzDataList) {
     //   System.out.println(gzDataElt);
@@ -260,29 +262,31 @@ public class CompanionRiskFactors {
     //long sizesOfAllLines = gzData.map(s -> s.length()).reduce((a, b) -> a + b).count();
     //System.out.println("Size: " + sizesOfAllLines);
 
-    try {
-      System.out.println("Putting app to sleep for 10 seconds again");
-      Thread.sleep(10000);
-    } catch (InterruptedException ex) {
-      System.out.println("Something went wrong putting the app to sleep for 10 seconds again");
-      ex.printStackTrace();
-      Thread.currentThread().interrupt();
-    }
+    // try {
+    //   System.out.println("Putting app to sleep for 10 seconds again");
+    //   Thread.sleep(10000);
+    // } catch (InterruptedException ex) {
+    //   System.out.println("Something went wrong putting the app to sleep for 10 seconds again");
+    //   ex.printStackTrace();
+    //   Thread.currentThread().interrupt();
+    // }
+    return measurementsPerSite;
   }
 
   /**
    * Get the weather observations from the KNMI website. Is used for checking if all the weather
    * stations are present in the database. If not, they will be added.
    */
-  public static void getWeatherKNMIObservations() {
+  public static Map<String, List<String>> getWeatherKNMIObservations(String ndwIdPattern) {
     System.out.println("Downloading weather");
+    Map<String, List<String>> weatherObservationsForMeasurementSite = new HashMap<String, List<String>>();
     String url = "http://projects.knmi.nl/klimatologie/uurgegevens/getdata_uur.cgi";
     HttpClient client = HttpClientBuilder.create().build();
     HttpPost post = new HttpPost(url);
     String USER_AGENT = "Mozilla/5.0";
     List<NameValuePair> urlParameters = new ArrayList<NameValuePair>();
-    urlParameters.add(new BasicNameValuePair("start", "2015120101"));
-    urlParameters.add(new BasicNameValuePair("end", "2015123124"));
+    urlParameters.add(new BasicNameValuePair("start", "2016010816"));
+    urlParameters.add(new BasicNameValuePair("end", "2016010817"));
     urlParameters.add(new BasicNameValuePair("vars", "ALL"));
     urlParameters.add(new BasicNameValuePair("stns", "ALL"));
     post.setHeader("User-Agent", USER_AGENT);
@@ -319,8 +323,7 @@ public class CompanionRiskFactors {
 
       // Get the weather and traffic for a traffic measurement point (or more than one). Currently matching a NDW id pattern.
       DatabaseManager dbMgr = DatabaseManager.getInstance();
-      String mpNamePattern = "RWS01_MONIBAS_0131hrl00%";
-      Map<String, Integer> weatherStationForMeasurementPoints = dbMgr.getWeatherStationForMeasurementPoints(mpNamePattern);
+      Map<String, Integer> weatherStationForMeasurementPoints = dbMgr.getWeatherStationForMeasurementPoints(ndwIdPattern);
       for (Entry<String, Integer> wsMp : weatherStationForMeasurementPoints.entrySet()) {
         int selectedStationNdwId = wsMp.getValue();
         System.out.println("Measurement point " + wsMp.getKey() + " gets weather from weather station " + selectedStationNdwId + "; getting weather observations for this station");
@@ -330,10 +333,11 @@ public class CompanionRiskFactors {
               return s.trim().startsWith(String.valueOf(selectedStationNdwId));
           }
         }).collect();
-        for (String obs : weatherObservationsForStation) {
-          System.out.println(obs);
-        }
-        System.out.println("-----------------------------------------");
+        weatherObservationsForMeasurementSite.put(wsMp.getKey(), weatherObservationsForStation);
+        // for (String obs : weatherObservationsForStation) {
+        //   System.out.println(obs);
+        // }
+        // System.out.println("-----------------------------------------");
       }
     } catch (IOException ex) {
       System.out.println("Something went wrong trying to save downloaded weather data to file;" + ex.getMessage());
@@ -351,6 +355,7 @@ public class CompanionRiskFactors {
       ex.printStackTrace();
       Thread.currentThread().interrupt();
     }
+    return weatherObservationsForMeasurementSite;
   }
 
   public static void printHelp(Options options) {
@@ -414,14 +419,26 @@ public class CompanionRiskFactors {
       CommandLineParser parser = new PosixParser(); // Should be using the DefaultParser, but this is generating an exception: Exception in thread "main" java.lang.IllegalAccessError: tried to access method org.apache.commons.cli.Options.getOptionGroups()Ljava/util/Collection; from class org.apache.commons.cli.DefaultParser
       CommandLine cmd = parser.parse(options, args, true);
 
+      String ndwIdPattern = "RWS01_MONIBAS_0131hrl00%";
+
       if (cmd.hasOption("se")) {
         runSparkExamples();
       } else if (cmd.hasOption("tcm")) {
         getTrafficNDWCurrentMeasurements(ftpUrl);
       } else if (cmd.hasOption("ts")) {
-        getTrafficNDWSpeed(ftpUrl);
+        Map<String, List<SiteMeasurement>> speedMeasurements = getTrafficNDWSpeed(ftpUrl, ndwIdPattern);
+        for (Entry<String, List<SiteMeasurement>> speedEntry : speedMeasurements.entrySet()) {
+          String ndwId = speedEntry.getKey();
+          List<SiteMeasurement> sms = speedEntry.getValue();
+          System.err.println("=================================================");
+          System.out.println("Measurement site: " + ndwId);
+          System.out.println("  Traffic:");
+          for (SiteMeasurement sm : sms) {
+            System.out.println("    " + sm);
+          }
+        }
       } else if (cmd.hasOption("wo")) {
-        getWeatherKNMIObservations();
+        getWeatherKNMIObservations(ndwIdPattern);
       } else if (cmd.hasOption("link")) {
         // Add a link between all measurement sites and weather stations. Only needs to be done when measurement site and 
         // weather station tables have been filled without adding these links. Normally not needed to do this.
@@ -437,13 +454,32 @@ public class CompanionRiskFactors {
         kmlGenerator.generateKmlForMeasurementSites(msList);
         List<MeasurementSite> msAreaList = dbMgr.getMeasurementSitesWithinArea(51.8f, 4.0f, 52.5f, 5.5f);
         kmlGenerator.generateKmlForMeasurementSites(msAreaList);
-        String mpNamePattern = "RWS01_MONIBAS_0131hrl00%";
-        List<MeasurementSite> msPatternMatchingList = dbMgr.getMeasurementPointsForNdwidPattern(mpNamePattern);
+        List<MeasurementSite> msPatternMatchingList = dbMgr.getMeasurementPointsForNdwidPattern(ndwIdPattern);
         kmlGenerator.generateKmlForMeasurementSites(msPatternMatchingList);
       } else if (cmd.hasOption("proc")) {
         getTrafficNDWCurrentMeasurements(ftpUrl);
-        getTrafficNDWSpeed(ftpUrl);
-        getWeatherKNMIObservations();
+        Map<String, List<SiteMeasurement>>  currentSpeedMeasurementsForMeasurementsSites = getTrafficNDWSpeed(ftpUrl, ndwIdPattern);
+        Map<String, List<String>> weatherObservationsForMeasurementSites = getWeatherKNMIObservations(ndwIdPattern);
+        for (Entry<String, List<SiteMeasurement>> speedEntry : currentSpeedMeasurementsForMeasurementsSites.entrySet()) {
+          String ndwId = speedEntry.getKey();
+          List<SiteMeasurement> sms = speedEntry.getValue();
+          System.err.println("=================================================");
+          System.out.println("Measurement site: " + ndwId);
+          if (weatherObservationsForMeasurementSites.containsKey(ndwId)) {
+            List<String> wos = weatherObservationsForMeasurementSites.get(ndwId);
+            System.out.println("  Traffic:");
+            for (SiteMeasurement sm : sms) {
+              System.out.println("    " + sm);
+            }
+            System.out.println("  Weather:");
+            for (String wo : wos) {
+              System.out.println("    " + wo);
+            }
+          } else {
+            System.err.println("  No weather observations for this measurement site");
+          }
+          System.err.println("-------------------------------------------------");
+        }
       } else {
         System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
         System.err.println("No known arguments provided when running the program.");

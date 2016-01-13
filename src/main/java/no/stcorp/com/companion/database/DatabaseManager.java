@@ -518,4 +518,30 @@ public class DatabaseManager implements Serializable {
     return weatherStationForMeasurementPoints;
   }
 
+  /**
+   * For a given traffic measurement point (MP) mathcing the NDW id pattern:
+   * Get the related weather station (WS) for each MP by the KNMI id
+   */
+  public List<String> getNdwIdsFromNdwIdPattern(String pNdwidPattern) {
+    List<String> selectedNdws = new ArrayList<String>();
+    try {
+      getConnection();
+      Statement st = mConnection.createStatement();
+      String getMeasurementSitesSql = "select ndwid from measurementsite where ndwid like '" + pNdwidPattern + "';";
+      LOGGER.finest("Query to get measurement sites matching the NDW id pattern: " + getMeasurementSitesSql);
+      ResultSet rs = st.executeQuery(getMeasurementSitesSql);
+      while (rs.next()) {
+        String ndwid = rs.getString("ndwid");
+        selectedNdws.add(ndwid);
+      }
+      rs.close();
+      st.close();
+      closeConnection();
+    } catch (SQLException ex) {
+      ex.printStackTrace();
+      throw new RuntimeException("Problem getting measurement sites from the database based on a name pattern: " + pNdwidPattern + " ;" + ex.getMessage());
+    }
+    return selectedNdws;
+  }
+
 }

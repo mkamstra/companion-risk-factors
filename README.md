@@ -8,3 +8,8 @@ The weather data is downloaded from the KNMI website which can provide historica
 
 The traffic data is downloaded from the NDW website, which provides actual measurements as well as historic measurements. These historic measurements are for free as well. The historic measurements can be downloaded upon requests (cannot be automated as it requires some captcha image to be read and filled) and contain data for each minute in the requested interval. Both travel time, ... are available.  
 but the process is rather slow as requests for data have to be made. Therefore these historic data have been downloaded locally, and the actual observations do get added to them to build up an archive of these data without the need for explicit requests. 
+
+The processing flow will link the weather and traffic data to traffic measurement points. Subsequently the machine learning can be used to learn from these data.
+
+Run the program as follows:
+

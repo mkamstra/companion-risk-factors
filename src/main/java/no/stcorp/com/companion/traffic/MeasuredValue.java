@@ -1,6 +1,11 @@
 package no.stcorp.com.companion;
 
-public class MeasuredValue {
+import java.io.Serializable;
+
+public class MeasuredValue implements Serializable {
+
+  	private static final long serialVersionUID = 400L;
+
 	private int mIndex;
 	private String mType;
 	private double mValue;
@@ -21,5 +26,10 @@ public class MeasuredValue {
 
 	public double getValue() {
 		return mValue;
+	}
+
+	@Override
+	public String toString() {
+		return mIndex + " (" + mType + "): " + mValue;
 	}
 }
