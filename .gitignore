@@ -23,3 +23,5 @@ LoggingWeatherKNMIParser.txt
 companion_git.tgz
 target/
 src/main/java/weathertest.txt
+companiondb.sql
+WeatherStations.txt.ods
