@@ -201,26 +201,20 @@ public class CompanionRiskFactors {
   }
 
   /**
-   * Get the speed traffic data from the NDW site
+   * Find the appropriate directory: before January 14th, data were downloaded manually as historical data, providing different 
+   * naming conventions as well as different files. From the 14th on the actual traffic data is downloaded automatically.
+   * < 20160114: 
+   *      Folder name: dd-MM-yyyy
+   *      Files: HHmm_Traveltime.gz, HHmm_Trafficspeed.gz
+   * >= 20160114: 
+   *      Folder name: yyyy_MM_dd
+   *      Files: wegwerkzaamheden_yyyy_MM_dd_HH_mm_ss_sss.xml.gz, trafficspeed_yyyy_MM_dd_HH_mm_ss_sss.xml.gz, 
+   *             traveltime_yyyy_MM_dd_HH_mm_ss_sss.xml.gz, srti_yyyy_MM_dd_HH_mm_ss_sss.xml.gz,
+   *             measurement_current_yyyy_MM_dd_HH_mm_ss_sss.xml.gz, gebeurtenisinfo_yyyy_MM_dd_HH_mm_ss_sss.xml.gz,
+   *             incidents_yyyy_MM_dd_HH_mm_ss_sss.xml.gz, measurements_yyyy_MM_dd_HH_mm_ss_sss.xml.gz,
+   *             brugopeningen_yyyy_MM_dd_HH_mm_ss_sss.xml.gz
    */
-  public static Map<String, List<SiteMeasurement>> getTrafficNDWSpeed(String ftpUrl, String ndwIdPattern, Instant startDate, Instant endDate) {
-    Map<String, List<SiteMeasurement>> measurementsPerSite = new HashMap<String, List<SiteMeasurement>>();
-
-    System.out.println("Downloading traffic speed");
-    /**
-     * Find the appropriate directory: before January 14th, data were downloaded manually as historical data, providing different 
-     * naming conventions as well as different files. From the 14th on the actual traffic data is downloaded automatically.
-     * < 20160114: 
-     *      Folder name: dd-MM-yyyy
-     *      Files: HHmm_Traveltime.gz, HHmm_Trafficspeed.gz
-     * >= 20160114: 
-     *      Folder name: yyyy_MM_dd
-     *      Files: wegwerkzaamheden_yyyy_MM_dd_HH_mm_ss_sss.xml.gz, trafficspeed_yyyy_MM_dd_HH_mm_ss_sss.xml.gz, 
-     *             traveltime_yyyy_MM_dd_HH_mm_ss_sss.xml.gz, srti_yyyy_MM_dd_HH_mm_ss_sss.xml.gz,
-     *             measurement_current_yyyy_MM_dd_HH_mm_ss_sss.xml.gz, gebeurtenisinfo_yyyy_MM_dd_HH_mm_ss_sss.xml.gz,
-     *             incidents_yyyy_MM_dd_HH_mm_ss_sss.xml.gz, measurements_yyyy_MM_dd_HH_mm_ss_sss.xml.gz,
-     *             brugopeningen_yyyy_MM_dd_HH_mm_ss_sss.xml.gz
-     */
+  private static List<String> getRelevantTrafficSpeedFiles(Instant startDate, Instant endDate) {
     // Get the day as the traffic data is organised by folders
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
     DateTimeFormatter formatterAutomaticDownload = DateTimeFormatter.ofPattern("yyyy_MM_dd").withZone(ZoneId.systemDefault());
@@ -317,6 +311,30 @@ public class CompanionRiskFactors {
         ex.printStackTrace();
       }
     }
+    return relevantFiles;
+  }
+
+  /**
+   * Get the speed traffic data from the NDW site
+   */
+  public static Map<String, List<SiteMeasurement>> getTrafficNDWSpeed(String ftpUrl, String ndwIdPattern, Instant startDate, Instant endDate) {
+    Map<String, List<SiteMeasurement>> measurementsPerSite = new HashMap<String, List<SiteMeasurement>>();
+
+    System.out.println("Downloading traffic speed");
+    List<String> relevantFiles = getRelevantTrafficSpeedFiles(startDate, endDate);
+    System.out.println("Relevant files: ");
+    for (String trafficFileName : relevantFiles) {
+      System.out.println(trafficFileName);
+    }
+    try {
+      System.out.println("Putting app to sleep for 100 seconds again");
+      Thread.sleep(100000);
+    } catch (InterruptedException ex) {
+      System.out.println("Something went wrong putting the app to sleep for 100 seconds again");
+      ex.printStackTrace();
+      Thread.currentThread().interrupt();
+    }
+
     for (String trafficFileName : relevantFiles) {
       //String trafficFileName = "trafficspeed_2016_01_08_16_32_38_230.xml.gz";
       String trafficZipUrl = ftpUrl + trafficFileName;
@@ -537,9 +555,10 @@ public class CompanionRiskFactors {
       CommandLine cmd = parser.parse(options, args, true);
 
       String ndwIdPattern = "RWS01_MONIBAS_0131hrl00%";
-      String startDateString = "20160108150000";
-      String endDateString = "20160108170000";
-      DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault());
+      // Times specified in whole hours (weather is not available at higher resolution than that anyway)
+      String startDateString = "2016010815";
+      String endDateString = "2016010817";
+      DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHH").withZone(ZoneId.systemDefault());
       Instant startDate = formatter.parse(startDateString, ZonedDateTime::from).toInstant();
       Instant endDate = formatter.parse(endDateString, ZonedDateTime::from).toInstant();
       DateTimeFormatter formatterWeatherKNMI = DateTimeFormatter.ofPattern("yyyyMMddHH").withZone(ZoneId.systemDefault());
@@ -601,6 +620,36 @@ public class CompanionRiskFactors {
           System.out.println("Measurement site: " + ndwId);
           if (weatherObservationsForMeasurementSites.containsKey(ndwId)) {
             List<String> wos = weatherObservationsForMeasurementSites.get(ndwId);
+            // Weather is available on an hourly basis, whereas traffic is recorded on a higher frequency (usually every minute). The number of the hour 
+            // in the weather represents the weather of the previous hour, i.e. 15 represents 14-15. A line of weather typically contains:
+            // # STN,YYYYMMDD,   HH,   DD,   FH,   FF,   FX,    T,  T10,   TD,   SQ,    Q,   DR,   RH,    P,   VV,    N,    U,   WW,   IX,    M,    R,    S,    O,    Y"
+            for (String wo : wos) {
+              String[] woElements = wo.split(",");
+              if (woElements.length == 25) {
+                String dateString = woElements[1];
+                String hourString = woElements[2];
+                int hours = Integer.valueOf(hourString);
+                String timeEndString = dateString + String.format("%02d", hours);
+                String timeStartString = dateString - + String.format("%02d", hours - 1);
+                Instant timeStart = formatter.parse(timeStartString, ZonedDateTime::from).toInstant();
+                Instant timeEnd = formatter.parse(timeEndString, ZonedDateTime::from).toInstant();
+                System.out.println("    --------- Weather observation and traffic measurements for the same hour -----------" + wo);
+                System.out.println("    " + wo);
+                try {
+                  int hour = Integer.valueOf(hourString.trim());
+                  for (SiteMEeasurement sm : sms) {
+                    Instant timeSm = sm.getMeasurementTimeDefault();
+                    if ((timeSm.isAfter(timeStart) && timeSm.isBefore(timeEnd)) || timeSm.equals(timeStart) || timeSm.equals(timeEnd)) {
+                      // This traffic measurement is in the same hour as the weather observation
+                      System.out.println("      " + sm);
+                    }
+                  }
+                } catch (Exception ex) {
+                  System.err.println("Weather record hour not an integer");
+                  ex.printStackTrace();
+                }
+              }
+            }
             System.out.println("  Traffic:");
             for (SiteMeasurement sm : sms) {
               System.out.println("    " + sm);
@@ -624,6 +673,13 @@ public class CompanionRiskFactors {
     } catch (ParseException ex) {
       System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
       System.out.println("Arguments provided cannot be parsed: " + ex.getMessage());
+      ex.printStackTrace();
+      printHelp(options);
+      System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+      System.exit(-1);
+    } catch (DateTimeException ex) {
+      System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+      System.out.println("Time should be formatted as yyyyMMddHH, but format provided was different: " + ex.getMessage());
       ex.printStackTrace();
       printHelp(options);
       System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
