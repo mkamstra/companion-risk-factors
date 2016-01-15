@@ -230,6 +230,7 @@ public class CompanionRiskFactors {
     } catch (Exception ex) {
       ex.printStackTrace();
     }
+    System.out.println("Hours start: " + hoursStart + ", hours end: " + hoursEnd);
     List<Instant> relevantDays = new ArrayList<Instant>();
     relevantDays.add(startDate);
     // Days between start and end date
@@ -244,7 +245,9 @@ public class CompanionRiskFactors {
     List<String> relevantFiles = new ArrayList<String>();
     try {
       ftpClient.connect("192.168.1.33");
+      ftpClient.enterLocalPassiveMode();
       ftpClient.login("companion", "1d1ada");
+      System.out.println("Working directory FTP server (1): " + ftpClient.printWorkingDirectory());
       for (int i = 0; i < relevantDays.size(); i++) {
         if (i == relevantDays.size() - 1) {
           lastDay = true;
@@ -253,11 +256,13 @@ public class CompanionRiskFactors {
         String dayFolderName = formatterAutomaticDownload.format(day);
         boolean automaticFolder = true;
         boolean directoryExists = ftpClient.changeWorkingDirectory("Projects//companion//downloadedData//NDW//" + dayFolderName);
+        System.out.println("Working directory FTP server (2): " + ftpClient.printWorkingDirectory());
         // Check if folder exists
         if (!directoryExists) {
           // Check if manual folder exists
           dayFolderName = formatterManualDownload.format(day);
           directoryExists = ftpClient.changeWorkingDirectory("Projects//companion//downloadedData//NDW//" + dayFolderName);
+          System.out.println("Working directory FTP server (3): " + ftpClient.printWorkingDirectory());
           if (directoryExists) {
             automaticFolder = false;
           } else {
@@ -265,6 +270,7 @@ public class CompanionRiskFactors {
             continue;
           }
         }
+        System.out.println("First day: " + firstDay + ", last day: " + lastDay);
         int startHour = 0;
         if (firstDay) {
           startHour = hoursStart;
@@ -273,26 +279,32 @@ public class CompanionRiskFactors {
         if (lastDay) {
           endHour = hoursEnd;
         }
+        System.out.println("Working directory FTP server (4): " + ftpClient.printWorkingDirectory());
         FTPFile[] allFtpFiles = ftpClient.listFiles();
+        System.out.println("Files in folder: " + allFtpFiles.length);
         List<String> allFiles = new ArrayList<String>();
         for (FTPFile ftpFile : allFtpFiles) {
+          // System.out.println(ftpFile.getName());
           allFiles.add(ftpFile.getName());
         }
+        System.out.println("Directory exists: " + directoryExists);
         if (directoryExists) {
           if (automaticFolder) {
+            System.out.println("Automatic folder");
             //  Filter by trafficspeed in name
             List<String> filesForDay = allFiles.stream().filter(s -> s.contains("trafficspeed")).collect(Collectors.toList());
             // Filter by hour
-            for (int hour = startHour; hour <= endHour; hour++) {
+            for (int hour = startHour; hour < endHour; hour++) {
               String hourFilterBaseString = "trafficspeed_" + dayFolderName + "_" + String.format("%02d", hour);
               List<String> filesForHour = filesForDay.stream().filter(s -> s.contains(hourFilterBaseString)).collect(Collectors.toList());
               relevantFiles.addAll(filesForHour);
             }
           } else {
+            System.out.println("Manual folder");
             //  Filter by trafficspeed in name
             List<String> filesForDay = allFiles.stream().filter(s -> s.contains("Trafficspeed")).collect(Collectors.toList());
             // Filter by hour
-            for (int hour = startHour; hour <= endHour; hour++) {
+            for (int hour = startHour; hour < endHour; hour++) {
               String hourString = String.format("%02d", hour);
               List<String> filesForHour = filesForDay.stream().filter(s -> s.startsWith(hourString)).collect(Collectors.toList());
               relevantFiles.addAll(filesForHour);
@@ -326,14 +338,14 @@ public class CompanionRiskFactors {
     for (String trafficFileName : relevantFiles) {
       System.out.println(trafficFileName);
     }
-    try {
-      System.out.println("Putting app to sleep for 100 seconds again");
-      Thread.sleep(100000);
-    } catch (InterruptedException ex) {
-      System.out.println("Something went wrong putting the app to sleep for 100 seconds again");
-      ex.printStackTrace();
-      Thread.currentThread().interrupt();
-    }
+    // try {
+    //   System.out.println("Putting app to sleep for 100 seconds again");
+    //   Thread.sleep(100000);
+    // } catch (InterruptedException ex) {
+    //   System.out.println("Something went wrong putting the app to sleep for 100 seconds again");
+    //   ex.printStackTrace();
+    //   Thread.currentThread().interrupt();
+    // }
 
     for (String trafficFileName : relevantFiles) {
       //String trafficFileName = "trafficspeed_2016_01_08_16_32_38_230.xml.gz";
@@ -371,7 +383,13 @@ public class CompanionRiskFactors {
         for (String ndwId : ndwIds) {
           // Filter based on ndw id and then collect into a list
           List<SiteMeasurement> measurementsForSite = measurementsDistributed.filter(ms -> ms.getMeasurementSiteReference().equalsIgnoreCase(ndwId)).collect();
-          measurementsPerSite.put(ndwId, measurementsForSite);
+          if (measurementsPerSite.containsKey(ndwId)) {
+            List<SiteMeasurement> existingMeasurements = measurementsPerSite.get(ndwId);
+            existingMeasurements.addAll(measurementsForSite);
+            measurementsPerSite.put(ndwId, existingMeasurements);
+          } else {
+            measurementsPerSite.put(ndwId, measurementsForSite);
+          }
         }
       }
       // for (String gzDataElt : gzDataList) {
@@ -501,13 +519,13 @@ public class CompanionRiskFactors {
   /**
    * Run this program as follows: 
    * /home/osboxes/Tools/spark-1.5.1/bin/spark-submit --driver-memory 2g --class "no.stcorp.com.companion.CompanionRiskFactors" 
-   *    --jars /home/osboxes/.m2/repository/org/postgresql/postgresql/9.4-1206-jdbc42/postgresql-9.4-1206-jdbc42.jar,
-   *    /home/osboxes/.m2/repository/org/apache/httpcomponents/httpclient/4.5.1/httpclient-4.5.1.jar,
-   *    /home/osboxes/.m2/repository/org/apache/httpcomponents/httpcore/4.4.4/httpcore-4.4.4.jar,
-   *    /home/osboxes/.m2/repository/commons-cli/commons-cli/1.3.1/commons-cli-1.3.1.jar --master local[*] 
-   *    target/CompanionWeatherTraffic-0.1.jar -se 
+   *     --jars /home/osboxes/.m2/repository/org/postgresql/postgresql/9.4-1206-jdbc42/postgresql-9.4-1206-jdbc42.jar,
+   *     /home/osboxes/.m2/repository/org/apache/httpcomponents/httpclient/4.5.1/httpclient-4.5.1.jar,
+   *     /home/osboxes/.m2/repository/org/apache/httpcomponents/httpcore/4.4.4/httpcore-4.4.4.jar,
+   *     /home/osboxes/.m2/repository/commons-cli/commons-cli/1.3.1/commons-cli-1.3.1.jar 
+   *     --master local[*] target/CompanionWeatherTraffic-0.1.jar -proc 2016-01-08-15,2016-01-08-16
    *
-   *    or one of the options: -tcm -ts -wo -link -kml -proc
+   *    or one of the options: -tcm -ts -wo -link -kml -proc -se
    *
    * Note the --jars to indicate the additional jars that need to be loaded 
    * The driver-memory can be set to a larger value than the default 1g to avoid Java heap space problems
@@ -541,7 +559,12 @@ public class CompanionRiskFactors {
     options.addOption("wo", false, "Get weather observations from KNMI");
     options.addOption("link", false, "Link measurement sites with weather observations");
     options.addOption("kml", false, "Generate KML files for the weather stations and measurement sites");
-    options.addOption("proc", false, "Run a processing sequence: fetch weather and traffic data ...");
+    //options.addOption("proc", false, "Run a processing sequence: fetch weather and traffic data ...");
+    Option procOption = OptionBuilder.withDescription("Run a processing sequence: fetch weather and traffic data ... Provide as arguments start and end date in format: yyyy-MM-dd-HH; separate arguments by comma")
+                                     .hasArgs(2)
+                                     .withValueSeparator(',')
+                                     .create("proc");
+    options.addOption(procOption);
 
     if (args.length == 0) {
       System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
@@ -551,28 +574,21 @@ public class CompanionRiskFactors {
       System.exit(-1);
     }
     try {
-      CommandLineParser parser = new PosixParser(); // Should be using the DefaultParser, but this is generating an exception: Exception in thread "main" java.lang.IllegalAccessError: tried to access method org.apache.commons.cli.Options.getOptionGroups()Ljava/util/Collection; from class org.apache.commons.cli.DefaultParser
+      // CommandLineParser parser = new PosixParser(); // Should be using the DefaultParser, but this is generating an exception: Exception in thread "main" java.lang.IllegalAccessError: tried to access method org.apache.commons.cli.Options.getOptionGroups()Ljava/util/Collection; from class org.apache.commons.cli.DefaultParser
+      CommandLineParser parser = new BasicParser(); // Should be using the DefaultParser, but this is generating an exception: Exception in thread "main" java.lang.IllegalAccessError: tried to access method org.apache.commons.cli.Options.getOptionGroups()Ljava/util/Collection; from class org.apache.commons.cli.DefaultParser
       CommandLine cmd = parser.parse(options, args, true);
 
       String ndwIdPattern = "RWS01_MONIBAS_0131hrl00%";
       // Times specified in whole hours (weather is not available at higher resolution than that anyway)
       String startDateString = "2016010815";
-      String endDateString = "2016010817";
+      String endDateString = "2016010816";
       DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHH").withZone(ZoneId.systemDefault());
       Instant startDate = formatter.parse(startDateString, ZonedDateTime::from).toInstant();
       Instant endDate = formatter.parse(endDateString, ZonedDateTime::from).toInstant();
       DateTimeFormatter formatterWeatherKNMI = DateTimeFormatter.ofPattern("yyyyMMddHH").withZone(ZoneId.systemDefault());
       String startDateStringKNMI = formatterWeatherKNMI.format(startDate);
       String endDateStringKNMI = formatterWeatherKNMI.format(endDate);
-      System.out.println("Start date KNMI: " + startDateStringKNMI + " - end date KNMI: " + endDateStringKNMI);
-      try {
-        System.out.println("Putting app to sleep for 10 seconds again");
-        Thread.sleep(10000);
-      } catch (InterruptedException ex) {
-        System.out.println("Something went wrong putting the app to sleep for 10 seconds again");
-        ex.printStackTrace();
-        Thread.currentThread().interrupt();
-      }
+      System.out.println("Start date KNMI: " + startDateStringKNMI + " - end date KNMI: " + endDateStringKNMI + " (hard coded)");
 
       if (cmd.hasOption("se")) {
         runSparkExamples();
@@ -610,7 +626,34 @@ public class CompanionRiskFactors {
         List<MeasurementSite> msPatternMatchingList = dbMgr.getMeasurementPointsForNdwidPattern(ndwIdPattern);
         kmlGenerator.generateKmlForMeasurementSites(msPatternMatchingList);
       } else if (cmd.hasOption("proc")) {
-        getTrafficNDWCurrentMeasurements(ftpUrl);
+        String[] arguments = cmd.getOptionValues("proc");
+        if (arguments.length != 2) {
+          System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+          System.err.println("The option proc. needs two arguments in the form of times with format yyyy-MM-dd HH separated by a comma. This was not provided. Provided was: " + Arrays.toString(arguments));
+          printHelp(options);
+          System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+          System.exit(-1);
+        }
+        startDateString = arguments[0];
+        endDateString = arguments[1];
+        try {
+          DateTimeFormatter cliFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH").withZone(ZoneId.systemDefault());
+          startDate = cliFormatter.parse(startDateString, ZonedDateTime::from).toInstant();
+          endDate = cliFormatter.parse(endDateString, ZonedDateTime::from).toInstant();
+        } catch (DateTimeException ex) {
+          System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+          System.out.println("Time should be formatted as yyyy-MM-dd-HH, but format provided was different: " + ex.getMessage());
+          ex.printStackTrace();
+          printHelp(options);
+          System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+          System.exit(-1);
+        }
+
+        startDateStringKNMI = formatterWeatherKNMI.format(startDate);
+        endDateStringKNMI = formatterWeatherKNMI.format(endDate);
+        System.out.println("Start date KNMI: " + startDateStringKNMI + " - end date KNMI: " + endDateStringKNMI + " (from command line)");
+        
+        //getTrafficNDWCurrentMeasurements(ftpUrl);
         Map<String, List<SiteMeasurement>>  currentSpeedMeasurementsForMeasurementsSites = getTrafficNDWSpeed(ftpUrl, ndwIdPattern, startDate, endDate);
         Map<String, List<String>> weatherObservationsForMeasurementSites = getWeatherKNMIObservations(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
         for (Entry<String, List<SiteMeasurement>> speedEntry : currentSpeedMeasurementsForMeasurementsSites.entrySet()) {
@@ -624,40 +667,44 @@ public class CompanionRiskFactors {
             // in the weather represents the weather of the previous hour, i.e. 15 represents 14-15. A line of weather typically contains:
             // # STN,YYYYMMDD,   HH,   DD,   FH,   FF,   FX,    T,  T10,   TD,   SQ,    Q,   DR,   RH,    P,   VV,    N,    U,   WW,   IX,    M,    R,    S,    O,    Y"
             for (String wo : wos) {
-              String[] woElements = wo.split(",");
-              if (woElements.length == 25) {
-                String dateString = woElements[1];
-                String hourString = woElements[2];
-                int hours = Integer.valueOf(hourString);
-                String timeEndString = dateString + String.format("%02d", hours);
-                String timeStartString = dateString - + String.format("%02d", hours - 1);
-                Instant timeStart = formatter.parse(timeStartString, ZonedDateTime::from).toInstant();
-                Instant timeEnd = formatter.parse(timeEndString, ZonedDateTime::from).toInstant();
-                System.out.println("    --------- Weather observation and traffic measurements for the same hour -----------" + wo);
-                System.out.println("    " + wo);
-                try {
-                  int hour = Integer.valueOf(hourString.trim());
-                  for (SiteMEeasurement sm : sms) {
-                    Instant timeSm = sm.getMeasurementTimeDefault();
-                    if ((timeSm.isAfter(timeStart) && timeSm.isBefore(timeEnd)) || timeSm.equals(timeStart) || timeSm.equals(timeEnd)) {
-                      // This traffic measurement is in the same hour as the weather observation
-                      System.out.println("      " + sm);
+              try {
+                String[] woElements = wo.split(",");
+                if (woElements.length == 25) {
+                  String dateString = woElements[1].trim();
+                  String hourString = woElements[2].trim();
+                  int hours = Integer.valueOf(hourString);
+                  String timeEndString = dateString + String.format("%02d", hours);
+                  String timeStartString = dateString + String.format("%02d", hours - 1);
+                  Instant timeStart = formatter.parse(timeStartString, ZonedDateTime::from).toInstant();
+                  Instant timeEnd = formatter.parse(timeEndString, ZonedDateTime::from).toInstant();
+                  System.out.println("    --------- Weather observation and traffic measurements for the same hour -----------" + wo);
+                  System.out.println("    " + wo);
+                  try {
+                    int hour = Integer.valueOf(hourString.trim());
+                    for (SiteMeasurement sm : sms) {
+                      Instant timeSm = sm.getMeasurementTimeDefault();
+                      if ((timeSm.isAfter(timeStart) && timeSm.isBefore(timeEnd)) || timeSm.equals(timeStart) || timeSm.equals(timeEnd)) {
+                        // This traffic measurement is in the same hour as the weather observation
+                        System.out.println("      " + sm);
+                      }
                     }
+                  } catch (Exception ex) {
+                    System.err.println("Weather record hour not an integer");
+                    ex.printStackTrace();
                   }
-                } catch (Exception ex) {
-                  System.err.println("Weather record hour not an integer");
-                  ex.printStackTrace();
                 }
+              } catch (Exception ex) {
+                ex.printStackTrace();
               }
             }
-            System.out.println("  Traffic:");
-            for (SiteMeasurement sm : sms) {
-              System.out.println("    " + sm);
-            }
-            System.out.println("  Weather:");
-            for (String wo : wos) {
-              System.out.println("    " + wo);
-            }
+            // System.out.println("  Traffic:");
+            // for (SiteMeasurement sm : sms) {
+            //   System.out.println("    " + sm);
+            // }
+            // System.out.println("  Weather:");
+            // for (String wo : wos) {
+            //   System.out.println("    " + wo);
+            // }
           } else {
             System.err.println("  No weather observations for this measurement site");
           }
