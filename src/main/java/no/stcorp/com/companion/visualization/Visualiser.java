@@ -31,8 +31,9 @@ import org.jfree.ui.RefineryUtilities;
 
 public class Visualiser extends ApplicationFrame {
 
-    final TimeSeries temperatureSeries = new TimeSeries("Temperature", Hour.class);
-    final TimeSeries precipitationSeries = new TimeSeries("Precipitation", Hour.class);
+    final TimeSeries temperatureSeries = new TimeSeries("Temperature (C)", Hour.class);
+    final TimeSeries precipitationSeries = new TimeSeries("Precipitation (mm/h)", Hour.class);
+    final TimeSeries windspeedSeries = new TimeSeries("Wind Speed (m/s)", Hour.class);
 
 
     /**
@@ -64,8 +65,8 @@ public class Visualiser extends ApplicationFrame {
         // create plot ...
         // final IntervalXYDataset data1 = createDataset1();
         final IntervalXYDataset dataPrecipitation = new TimeSeriesCollection(precipitationSeries);
-        final XYItemRenderer rendererPrecipitation = new XYBarRenderer(0.20);
-        rendererPrecipitation.setToolTipGenerator(
+        final XYItemRenderer rendererHistogram = new XYBarRenderer(0.20);
+        rendererHistogram.setToolTipGenerator(
             new StandardXYToolTipGenerator(
                 StandardXYToolTipGenerator.DEFAULT_TOOL_TIP_FORMAT,
                 new SimpleDateFormat("yyyy-MM-dd"), new DecimalFormat("0.00")
@@ -74,7 +75,7 @@ public class Visualiser extends ApplicationFrame {
         final DateAxis domainAxis = new DateAxis("Time");
         domainAxis.setTickMarkPosition(DateTickMarkPosition.MIDDLE);
         final ValueAxis rangeAxisPrecipitation = new NumberAxis("Precipitation (mm/h)");
-        final XYPlot plot = new XYPlot(dataPrecipitation, domainAxis, rangeAxisPrecipitation, rendererPrecipitation);
+        final XYPlot plot = new XYPlot(dataPrecipitation, domainAxis, rangeAxisPrecipitation, rendererHistogram);
         // final double x = new Day(9, SerialDate.MARCH, 2002).getMiddleMillisecond();
         // final XYTextAnnotation annotation = new XYTextAnnotation("Hello!", x, 10000.0);
         // annotation.setFont(new Font("SansSerif", Font.PLAIN, 9));
@@ -84,10 +85,9 @@ public class Visualiser extends ApplicationFrame {
         plot.setRangeAxis(1, rangeAxisTemperature);
 
         // add a second dataset and renderer...
-        // final XYDataset data2 = createDataset2();
         final IntervalXYDataset dataTemperature = new TimeSeriesCollection(temperatureSeries);
-        final XYItemRenderer rendererTemperature = new StandardXYItemRenderer();
-        rendererTemperature.setToolTipGenerator(
+        final XYItemRenderer rendererLine = new StandardXYItemRenderer();
+        rendererLine.setToolTipGenerator(
             new StandardXYToolTipGenerator(
                 StandardXYToolTipGenerator.DEFAULT_TOOL_TIP_FORMAT,
                 new SimpleDateFormat("yyyy-MM-dd"), new DecimalFormat("0.00")
@@ -95,8 +95,24 @@ public class Visualiser extends ApplicationFrame {
         );
         plot.setDataset(1, dataTemperature);
         plot.mapDatasetToRangeAxis(1, 1);
-        plot.setRenderer(1, rendererTemperature);
+        plot.setRenderer(1, rendererLine);
         
+        final ValueAxis rangeAxisWindspeed = new NumberAxis("Wind speed (m/s)");
+        plot.setRangeAxis(2, rangeAxisWindspeed);
+
+        // add a second dataset and renderer...
+        final IntervalXYDataset dataWindspeed = new TimeSeriesCollection(windspeedSeries);
+        final XYItemRenderer rendererLine2 = new StandardXYItemRenderer();
+        rendererLine.setToolTipGenerator(
+            new StandardXYToolTipGenerator(
+                StandardXYToolTipGenerator.DEFAULT_TOOL_TIP_FORMAT,
+                new SimpleDateFormat("yyyy-MM-dd"), new DecimalFormat("0.00")
+            )
+        );
+        plot.setDataset(2, dataWindspeed);
+        plot.mapDatasetToRangeAxis(2, 2);
+        plot.setRenderer(2, rendererLine2);
+
         plot.setDatasetRenderingOrder(DatasetRenderingOrder.FORWARD);
 
         // return a new chart containing the overlaid plot...
@@ -122,63 +138,13 @@ public class Visualiser extends ApplicationFrame {
     	}
     }
 
-    // /**
-    //  * Creates a sample dataset.
-    //  *
-    //  * @return The dataset.
-    //  */
-    // private IntervalXYDataset createDataset1() {
-
-    //     // create dataset 1...
-    //     final TimeSeries series1 = new TimeSeries("Series 1", Day.class);
-    //     series1.add(new Day(1, SerialDate.MARCH, 2002), 12353.3);
-    //     series1.add(new Day(2, SerialDate.MARCH, 2002), 13734.4);
-    //     series1.add(new Day(3, SerialDate.MARCH, 2002), 14525.3);
-    //     series1.add(new Day(4, SerialDate.MARCH, 2002), 13984.3);
-    //     series1.add(new Day(5, SerialDate.MARCH, 2002), 12999.4);
-    //     series1.add(new Day(6, SerialDate.MARCH, 2002), 14274.3);
-    //     series1.add(new Day(7, SerialDate.MARCH, 2002), 15943.5);
-    //     series1.add(new Day(8, SerialDate.MARCH, 2002), 14845.3);
-    //     series1.add(new Day(9, SerialDate.MARCH, 2002), 14645.4);
-    //     series1.add(new Day(10, SerialDate.MARCH, 2002), 16234.6);
-    //     series1.add(new Day(11, SerialDate.MARCH, 2002), 17232.3);
-    //     series1.add(new Day(12, SerialDate.MARCH, 2002), 14232.2);
-    //     series1.add(new Day(13, SerialDate.MARCH, 2002), 13102.2);
-    //     series1.add(new Day(14, SerialDate.MARCH, 2002), 14230.2);
-    //     series1.add(new Day(15, SerialDate.MARCH, 2002), 11235.2);
-
-    //     return new TimeSeriesCollection(series1);
-
-    // }
-
-    // /**
-    //  * Creates a sample dataset.
-    //  *
-    //  * @return The dataset.
-    //  */
-    // private XYDataset createDataset2() {
-
-    //     // create dataset 2...
-    //     final TimeSeries series2 = new TimeSeries("Series 2", Day.class);
-
-    //     series2.add(new Day(3, SerialDate.MARCH, 2002), 50.0);
-    //     series2.add(new Day(4, SerialDate.MARCH, 2002), 53.1);
-    //     series2.add(new Day(5, SerialDate.MARCH, 2002), 52.3);
-    //     series2.add(new Day(6, SerialDate.MARCH, 2002), 30.1);
-    //     series2.add(new Day(7, SerialDate.MARCH, 2002), 42.9);
-    //     series2.add(new Day(8, SerialDate.MARCH, 2002), 60.1);
-    //     series2.add(new Day(9, SerialDate.MARCH, 2002), 63.0);
-    //     series2.add(new Day(10, SerialDate.MARCH, 2002), 55.0);
-    //     series2.add(new Day(11, SerialDate.MARCH, 2002), 34.0);
-    //     series2.add(new Day(12, SerialDate.MARCH, 2002), 33.1);
-    //     series2.add(new Day(13, SerialDate.MARCH, 2002), 39.1);
-    //     series2.add(new Day(14, SerialDate.MARCH, 2002), 46.0);
-    //     series2.add(new Day(15, SerialDate.MARCH, 2002), 53.1);
-    //     series2.add(new Day(16, SerialDate.MARCH, 2002), 58.0);
-
-    //     final TimeSeriesCollection tsc = new TimeSeriesCollection(series2);
-    //     return tsc;
-
-    // }
+    public void addWindspeedRecord(Instant pTime, double pWindspeed) {
+    	Hour hour = new Hour(Date.from(pTime));
+    	if (windspeedSeries.getDataItem(hour) != null) {
+    		System.err.println("Trying to add wind speed at hour " + hour + " but a value for that hour exists already");
+    	} else {
+    		windspeedSeries.add(hour, pWindspeed);
+    	}
+    }
 
 }

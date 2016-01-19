@@ -505,8 +505,28 @@ public class CompanionRiskFactors {
     HttpPost post = new HttpPost(url);
     String USER_AGENT = "Mozilla/5.0";
     List<NameValuePair> urlParameters = new ArrayList<NameValuePair>();
-    urlParameters.add(new BasicNameValuePair("start", startDate));
-    urlParameters.add(new BasicNameValuePair("end", endDate));
+    System.out.println("getWeatherKNMIObservations - start date: " + startDate + ", end date: " + endDate);
+    // Remove the hours from the URL as the KNMI API implies that only these hours for the days are being fetched (e.g 2016010114 - 2016010116 implies from 14 to 16 each day, not including the other hours in between start and end date)
+    final String startDateWithoutHours = startDate.substring(0, 8);
+    final String endDateWithoutHours = endDate.substring(0, 8);
+    System.out.println("getWeatherKNMIObservations - start date without hours: " + startDateWithoutHours + ", end date without hours: " + endDateWithoutHours);
+    String startHourString = startDate.substring(8);
+    String endHourString = endDate.substring(8);
+    int startHourFromArgs = -1;
+    int endHourFromArgs = -1;
+    try {
+      startHourFromArgs = Integer.valueOf(startHourString.trim());
+      endHourFromArgs = Integer.valueOf(endHourString.trim());
+    } catch (Exception ex) {
+      System.err.println("Hour not formattted as integer");
+      ex.printStackTrace();
+    }
+    final int startHour = startHourFromArgs;
+    final int endHour = endHourFromArgs;
+    System.out.println("getWeatherKNMIObservations - Start hour from args: " + startHour + ", end hour: " + endHour);
+
+    urlParameters.add(new BasicNameValuePair("start", startDateWithoutHours));
+    urlParameters.add(new BasicNameValuePair("end", endDateWithoutHours));
     urlParameters.add(new BasicNameValuePair("vars", "ALL"));
     urlParameters.add(new BasicNameValuePair("stns", "ALL"));
     post.setHeader("User-Agent", USER_AGENT);
@@ -550,7 +570,35 @@ public class CompanionRiskFactors {
         List<String> weatherObservationsForStation = weatherObservations.filter(new Function<String, Boolean>() {
           private static final long serialVersionUID = 7L;
           public Boolean call(String s) { 
-              return s.trim().startsWith(String.valueOf(selectedStationNdwId));
+            // Filter on the station ndw id
+            boolean forThisStation = s.trim().startsWith(String.valueOf(selectedStationNdwId));
+            if (forThisStation) {
+              // Filter on the hour
+              String[] woElements = s.split(",");
+              if (woElements.length == 25) {
+                String dateString = woElements[1].trim();
+                String hourString = woElements[2].trim();
+                try {
+                  int hourObservation = Integer.valueOf(hourString.trim());
+                  String timeString = dateString + String.format("%02d", hourObservation);
+                  if (dateString.equals(startDateWithoutHours)) {
+                    // First day, so only take the relevant hours
+                    if (hourObservation < startHour) {
+                      forThisStation = false;
+                    }
+                  } else if (dateString.equals(endDateWithoutHours)) {
+                    // Last day, so only take the relevant hours
+                    if (hourObservation > endHour) {
+                      forThisStation = false;
+                    }
+                  }
+                } catch (Exception ex) {
+                  System.err.println("Hour in file not formattted as integer");
+                  ex.printStackTrace();
+                }
+              }
+            }
+            return forThisStation;
           }
         }).collect();
         weatherObservationsForMeasurementSite.put(wsMp.getKey(), weatherObservationsForStation);
@@ -746,6 +794,9 @@ public class CompanionRiskFactors {
                 if (woElements.length == 25) {
                   String dateString = woElements[1].trim();
                   String hourString = woElements[2].trim();
+                  String windspeedString = woElements[5].trim(); // Wind speed in 0.1 m/s
+                  int windspeed01 = Integer.valueOf(windspeedString);
+                  double windspeed = windspeed01 / 10.0;
                   String temperatureString = woElements[7].trim(); // Temperature in 0.1 Celsius
                   int temperature01 = Integer.valueOf(temperatureString);
                   double temperature = temperature01 / 10.0;
@@ -760,6 +811,9 @@ public class CompanionRiskFactors {
                   Instant timeEnd = formatter.parse(timeEndString, ZonedDateTime::from).toInstant();
                   vis.addTemperatureRecord(timeEnd, temperature);
                   vis.addPrecipitationRecord(timeEnd, precipitation);
+                  vis.addWindspeedRecord(timeEnd, windspeed);
+                  System.out.println("Just added for hour " + timeEndString + " : temperature = " + temperature + ", precipitation = " + precipitation + ", windspeed = " + windspeed);
+                  //waitForUserInput();
                   System.out.println("    --------- Weather observation and traffic measurements for the same hour -----------" + wo);
                   System.out.println("    " + wo);
                   try {
