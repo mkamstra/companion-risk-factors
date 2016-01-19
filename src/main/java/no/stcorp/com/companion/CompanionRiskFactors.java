@@ -5,6 +5,7 @@ import no.stcorp.com.companion.kml.*;
 import no.stcorp.com.companion.traffic.*;
 import no.stcorp.com.companion.weather.*;
 import no.stcorp.com.companion.xml.*;
+import no.stcorp.com.companion.visualization.*;
 
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
@@ -26,7 +27,11 @@ import org.apache.spark.SparkFiles;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.FlatMapFunction;
 
+import org.jfree.ui.RefineryUtilities;
+
 import java.io.*;
+
+import java.nio.file.*;
 
 import java.time.*;
 import java.time.format.*;
@@ -239,8 +244,9 @@ public class CompanionRiskFactors {
       Instant extraDate = startDate.plus(day, ChronoUnit.DAYS);
       relevantDays.add(extraDate);
     }
+    System.out.println("Days in between: " + daysBetween);
     boolean firstDay = true;
-    boolean lastDay = true;
+    boolean lastDay = false;
     FTPClient ftpClient = new FTPClient();
     List<String> relevantFiles = new ArrayList<String>();
     try {
@@ -249,24 +255,26 @@ public class CompanionRiskFactors {
       ftpClient.login("companion", "1d1ada");
       System.out.println("Working directory FTP server (1): " + ftpClient.printWorkingDirectory());
       for (int i = 0; i < relevantDays.size(); i++) {
+        ftpClient.changeWorkingDirectory("//Projects//companion//downloadedData//NDW//");
+        System.out.println("Working directory FTP server (2): " + ftpClient.printWorkingDirectory());
         if (i == relevantDays.size() - 1) {
           lastDay = true;
         }
         Instant day = relevantDays.get(i);
         String dayFolderName = formatterAutomaticDownload.format(day);
         boolean automaticFolder = true;
-        boolean directoryExists = ftpClient.changeWorkingDirectory("Projects//companion//downloadedData//NDW//" + dayFolderName);
-        System.out.println("Working directory FTP server (2): " + ftpClient.printWorkingDirectory());
+        boolean directoryExists = ftpClient.changeWorkingDirectory(dayFolderName);
+        System.out.println("Working directory FTP server (3a): " + ftpClient.printWorkingDirectory());
         // Check if folder exists
         if (!directoryExists) {
           // Check if manual folder exists
           dayFolderName = formatterManualDownload.format(day);
-          directoryExists = ftpClient.changeWorkingDirectory("Projects//companion//downloadedData//NDW//" + dayFolderName);
-          System.out.println("Working directory FTP server (3): " + ftpClient.printWorkingDirectory());
+          directoryExists = ftpClient.changeWorkingDirectory(dayFolderName);
+          System.out.println("Working directory FTP server (3b): " + ftpClient.printWorkingDirectory());
           if (directoryExists) {
             automaticFolder = false;
           } else {
-            System.err.println("No folder for date " + formatter.format(day) + " exists");
+            System.err.println("No folder for date " + dayFolderName + " exists");
             continue;
           }
         }
@@ -297,7 +305,10 @@ public class CompanionRiskFactors {
             for (int hour = startHour; hour < endHour; hour++) {
               String hourFilterBaseString = "trafficspeed_" + dayFolderName + "_" + String.format("%02d", hour);
               List<String> filesForHour = filesForDay.stream().filter(s -> s.contains(hourFilterBaseString)).collect(Collectors.toList());
-              relevantFiles.addAll(filesForHour);
+              System.out.println("Hour: " + hour + ", number of relevant files: " + filesForHour.size());
+              for (String fileForHour : filesForHour) {
+                relevantFiles.add("//" + dayFolderName + "//" + fileForHour);
+              }
             }
           } else {
             System.out.println("Manual folder");
@@ -307,7 +318,10 @@ public class CompanionRiskFactors {
             for (int hour = startHour; hour < endHour; hour++) {
               String hourString = String.format("%02d", hour);
               List<String> filesForHour = filesForDay.stream().filter(s -> s.startsWith(hourString)).collect(Collectors.toList());
-              relevantFiles.addAll(filesForHour);
+              System.out.println("Hour: " + hour + ", number of relevant files: " + filesForHour.size());
+              for (String fileForHour : filesForHour) {
+                relevantFiles.add("//" + dayFolderName + "//" + fileForHour);
+              }
             }
           }
         }
@@ -326,6 +340,42 @@ public class CompanionRiskFactors {
     return relevantFiles;
   }
 
+  private static void printFileDetailsForFolder(Path pFolder) {
+    System.out.println("============== Files in folder: " + pFolder.toString() + " ================");
+    try {
+      Files.walk(pFolder).forEach(filePath -> {
+        if (Files.isRegularFile(filePath)) {
+          try {
+            System.out.println(filePath + " (" + Files.size(filePath) + ")");
+          } catch (AccessDeniedException e) {
+            System.out.println("Problem accessing file " + filePath);
+          } catch (IOException e) {
+            e.printStackTrace();
+          } catch (Exception e) {
+            e.printStackTrace();
+          }
+        }
+      });
+    } catch (AccessDeniedException ex) {
+      System.out.println("Problem accessing file");
+      ex.printStackTrace();
+    } catch (IOException ex) {
+      ex.printStackTrace();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+    }
+  }
+
+  private static void waitForUserInput() {
+    Scanner scan = new Scanner(System.in);
+    System.out.println("Continue by pressing any key followed by ENTER");
+    try {
+      scan.nextInt();
+    } catch (Exception ex) {
+      // Not important to write anything
+    }
+  }
+
   /**
    * Get the speed traffic data from the NDW site
    */
@@ -334,6 +384,14 @@ public class CompanionRiskFactors {
 
     System.out.println("Downloading traffic speed");
     List<String> relevantFiles = getRelevantTrafficSpeedFiles(startDate, endDate);
+    // System.out.println("Relevant files: ");
+    // for (String trafficFileName : relevantFiles) {
+    //   System.out.println(trafficFileName);
+    // }
+    // TODO MK: Remove the following lines again as they are just there to reduce the processing time while testing
+    //relevantFiles = relevantFiles.subList(0,2);
+    relevantFiles = relevantFiles.stream().filter(filename -> filename.contains("1400") || filename.contains("1401")).collect(Collectors.toList());
+    relevantFiles = relevantFiles.subList(0,2);
     System.out.println("Relevant files: ");
     for (String trafficFileName : relevantFiles) {
       System.out.println(trafficFileName);
@@ -348,50 +406,59 @@ public class CompanionRiskFactors {
     // }
 
     for (String trafficFileName : relevantFiles) {
-      //String trafficFileName = "trafficspeed_2016_01_08_16_32_38_230.xml.gz";
-      String trafficZipUrl = ftpUrl + trafficFileName;
-      System.out.println("Traffic zip URL: " + trafficZipUrl);
-      sc.addFile(trafficZipUrl);
-      String trafficFilePath = SparkFiles.get(trafficFileName);
-      System.out.println("Traffic file path: " + trafficFilePath);
+      try {
+        //String trafficFileName = "trafficspeed_2016_01_08_16_32_38_230.xml.gz";
+        String trafficZipUrl = ftpUrl + trafficFileName;
+        System.out.println("Traffic zip URL: " + trafficZipUrl);
+        sc.addFile(trafficZipUrl);
+        String fileNameWithoutDay = Paths.get(trafficFileName).getFileName().toString();
+        String trafficFilePath = SparkFiles.get(fileNameWithoutDay);
+        System.out.println("Traffic file path: " + trafficFilePath);
 
-      JavaRDD<String> gzData = sc.textFile(trafficFilePath).cache(); // textFile should decompress gzip automatically
-      //System.out.println("Output: ");
-      //System.out.println(gzData.toString());
-      /**
-       * Another common idiom is attempting to print out the elements of an RDD using rdd.foreach(println) or rdd.map(println). 
-       * On a single machine, this will generate the expected output and print all the RDD’s elements. However, in cluster mode, 
-       * the output to stdout being called by the executors is now writing to the executor’s stdout instead, not the one on the 
-       * driver, so stdout on the driver won’t show these! To print all elements on the driver, one can use the collect() method 
-       * to first bring the RDD to the driver node thus: rdd.collect().foreach(println). This can cause the driver to run out of 
-       * memory, though, because collect() fetches the entire RDD to a single machine; if you only need to print a few elements 
-       * of the RDD, a safer approach is to use the take(): rdd.take(100).foreach(println).
-       */
-      List<String> gzDataList = gzData.collect(); 
-      System.out.println("Number of elements in gzData: " + gzDataList.size());
+        printFileDetailsForFolder(Paths.get("/tmp"));
 
-      // Call the ParseTrafficSpeedXml class which is defined in another class to parse the traffic speed data
-      if (gzDataList.size() == 1) {
-        String importedFileText = gzDataList.get(0);
-        TrafficNDWSpeedParser parser = new TrafficNDWSpeedParser();
-        List<SiteMeasurement> measurements = parser.call(importedFileText);
-        JavaRDD<SiteMeasurement> measurementsDistributed = sc.parallelize(measurements); // Parallelizing the existing collection
-        System.out.println("Number of speed measurements: " + measurementsDistributed.count());
-        DatabaseManager dbMgr = DatabaseManager.getInstance();
-        List<String> ndwIds = dbMgr.getNdwIdsFromNdwIdPattern(ndwIdPattern);
-        // Now determine the measurements per station
-        for (String ndwId : ndwIds) {
-          // Filter based on ndw id and then collect into a list
-          List<SiteMeasurement> measurementsForSite = measurementsDistributed.filter(ms -> ms.getMeasurementSiteReference().equalsIgnoreCase(ndwId)).collect();
-          if (measurementsPerSite.containsKey(ndwId)) {
-            List<SiteMeasurement> existingMeasurements = measurementsPerSite.get(ndwId);
-            existingMeasurements.addAll(measurementsForSite);
-            measurementsPerSite.put(ndwId, existingMeasurements);
-          } else {
-            measurementsPerSite.put(ndwId, measurementsForSite);
+        JavaRDD<String> gzData = sc.textFile(trafficFilePath).cache(); // textFile should decompress gzip automatically
+        //System.out.println("Output: ");
+        //System.out.println(gzData.toString());
+        /**
+         * Another common idiom is attempting to print out the elements of an RDD using rdd.foreach(println) or rdd.map(println). 
+         * On a single machine, this will generate the expected output and print all the RDD’s elements. However, in cluster mode, 
+         * the output to stdout being called by the executors is now writing to the executor’s stdout instead, not the one on the 
+         * driver, so stdout on the driver won’t show these! To print all elements on the driver, one can use the collect() method 
+         * to first bring the RDD to the driver node thus: rdd.collect().foreach(println). This can cause the driver to run out of 
+         * memory, though, because collect() fetches the entire RDD to a single machine; if you only need to print a few elements 
+         * of the RDD, a safer approach is to use the take(): rdd.take(100).foreach(println).
+         */
+        List<String> gzDataList = gzData.collect(); 
+        System.out.println("Number of elements in gzData: " + gzDataList.size());
+
+        // Call the ParseTrafficSpeedXml class which is defined in another class to parse the traffic speed data
+        if (gzDataList.size() == 1) {
+          String importedFileText = gzDataList.get(0);
+          TrafficNDWSpeedParser parser = new TrafficNDWSpeedParser();
+          List<SiteMeasurement> measurements = parser.call(importedFileText);
+          JavaRDD<SiteMeasurement> measurementsDistributed = sc.parallelize(measurements); // Parallelizing the existing collection
+          System.out.println("Number of speed measurements: " + measurementsDistributed.count());
+          DatabaseManager dbMgr = DatabaseManager.getInstance();
+          List<String> ndwIds = dbMgr.getNdwIdsFromNdwIdPattern(ndwIdPattern);
+          // Now determine the measurements per station
+          for (String ndwId : ndwIds) {
+            // Filter based on ndw id and then collect into a list
+            List<SiteMeasurement> measurementsForSite = measurementsDistributed.filter(ms -> ms.getMeasurementSiteReference().equalsIgnoreCase(ndwId)).collect();
+            if (measurementsPerSite.containsKey(ndwId)) {
+              List<SiteMeasurement> existingMeasurements = measurementsPerSite.get(ndwId);
+              existingMeasurements.addAll(measurementsForSite);
+              measurementsPerSite.put(ndwId, existingMeasurements);
+            } else {
+              measurementsPerSite.put(ndwId, measurementsForSite);
+            }
           }
         }
+      } catch (Exception ex) {
+        System.err.println("Something went wrong reading and parsing the file " + trafficFileName);
+        ex.printStackTrace();
       }
+
       // for (String gzDataElt : gzDataList) {
       //   System.out.println(gzDataElt);
       // }
@@ -538,7 +605,8 @@ public class CompanionRiskFactors {
     conf = new SparkConf().setAppName("COMPANION Weather Traffic Change Detection System")
       .set("spark.executor.memory", "3g")
       .set("spark.driver.memory", "3g")
-      .set("spark.executor.maxResultSize", "3g"); 
+      .set("spark.executor.maxResultSize", "3g")
+      .set("spark.files.overwrite", "true"); // This setting to be able to overwrite an existing file on the temp directory as for different days of traffic the file names might be identical 
       /**
        * The previous settings do not work when running in local mode:
        * For local mode you only have one executor, and this executor is your driver, so you need to set the driver's 
@@ -550,7 +618,7 @@ public class CompanionRiskFactors {
     sc = new JavaSparkContext(conf); // JavaSparkContext object tells Spark how to access a cluster
     String ftpUrl = "ftp://83.247.110.3/"; // Old URL valid until 2016/01/15
     ftpUrl = "ftp://opendata.ndw.nu/"; // New URL valid from 2016/01/01 (15 days overlap)
-    ftpUrl = "ftp://companion:1d1ada@192.168.1.33/Projects/companion/downloadedData/NDW/2016_01_08/"; // Data downloaded locally due to awkard interface for downloading historical data on NDW
+    ftpUrl = "ftp://companion:1d1ada@192.168.1.33/Projects/companion/downloadedData/NDW/"; // Data downloaded locally due to awkard interface for downloading historical data on NDW
 
     Options options = new Options();
     options.addOption("se", false, "Run some Spark examples to see if Spark is functioning as expected");
@@ -656,27 +724,42 @@ public class CompanionRiskFactors {
         //getTrafficNDWCurrentMeasurements(ftpUrl);
         Map<String, List<SiteMeasurement>>  currentSpeedMeasurementsForMeasurementsSites = getTrafficNDWSpeed(ftpUrl, ndwIdPattern, startDate, endDate);
         Map<String, List<String>> weatherObservationsForMeasurementSites = getWeatherKNMIObservations(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
+        // Loop over the speed measurements per measurement site
         for (Entry<String, List<SiteMeasurement>> speedEntry : currentSpeedMeasurementsForMeasurementsSites.entrySet()) {
           String ndwId = speedEntry.getKey();
           List<SiteMeasurement> sms = speedEntry.getValue();
           System.err.println("=================================================");
           System.out.println("Measurement site: " + ndwId);
+          // Check if there are weather observations for the current measurement site
           if (weatherObservationsForMeasurementSites.containsKey(ndwId)) {
             List<String> wos = weatherObservationsForMeasurementSites.get(ndwId);
             // Weather is available on an hourly basis, whereas traffic is recorded on a higher frequency (usually every minute). The number of the hour 
             // in the weather represents the weather of the previous hour, i.e. 15 represents 14-15. A line of weather typically contains:
-            // # STN,YYYYMMDD,   HH,   DD,   FH,   FF,   FX,    T,  T10,   TD,   SQ,    Q,   DR,   RH,    P,   VV,    N,    U,   WW,   IX,    M,    R,    S,    O,    Y"
+            // # STN,YYYYMMDD,   HH,   DD,   FH,   FF,   FX,    T,  T10,   TD,   SQ,    Q,   DR,   RH,    P,   VV,    N,    U,   WW,   IX,    M,    R,    S,    O,    Y
+            // Loop over the weather observations which are sorted in time
+            // Create a plot for each day
+            Visualiser vis = new Visualiser("Weather and traffic at measurement site " + ndwId);
+            int hours = -1;
             for (String wo : wos) {
               try {
                 String[] woElements = wo.split(",");
                 if (woElements.length == 25) {
                   String dateString = woElements[1].trim();
                   String hourString = woElements[2].trim();
-                  int hours = Integer.valueOf(hourString);
+                  String temperatureString = woElements[7].trim(); // Temperature in 0.1 Celsius
+                  int temperature01 = Integer.valueOf(temperatureString);
+                  double temperature = temperature01 / 10.0;
+                  hours = Integer.valueOf(hourString);
+                  String precipitationString = woElements[13].trim(); // Precipitation in 0.1 mm/h
+                  int precipitation01 = Integer.valueOf(precipitationString);
+                  double precipitation = Math.max(0.0, precipitation01 / 10.0); // Can be negative: -1 means < 0.05 mm/h, but we ignore that for now
+
                   String timeEndString = dateString + String.format("%02d", hours);
                   String timeStartString = dateString + String.format("%02d", hours - 1);
                   Instant timeStart = formatter.parse(timeStartString, ZonedDateTime::from).toInstant();
                   Instant timeEnd = formatter.parse(timeEndString, ZonedDateTime::from).toInstant();
+                  vis.addTemperatureRecord(timeEnd, temperature);
+                  vis.addPrecipitationRecord(timeEnd, precipitation);
                   System.out.println("    --------- Weather observation and traffic measurements for the same hour -----------" + wo);
                   System.out.println("    " + wo);
                   try {
@@ -689,13 +772,29 @@ public class CompanionRiskFactors {
                       }
                     }
                   } catch (Exception ex) {
-                    System.err.println("Weather record hour not an integer");
+                    System.err.println("Weather record hour should only contain integer values");
                     ex.printStackTrace();
                   }
                 }
               } catch (Exception ex) {
                 ex.printStackTrace();
               }
+              if (hours == 0) {
+                // A new day has started, so plot of the previous day can be shown
+                System.out.println("Plotting due to new day");
+                vis.create(ndwId, startDateString, endDateString);
+                vis.pack();
+                RefineryUtilities.centerFrameOnScreen(vis);
+                vis.setVisible(true);
+              }
+            }
+            // Finished, so certainly show the plot
+            if (hours != 0) {
+              System.out.println("Plotting due to end of loop");
+              vis.create(ndwId, startDateString, endDateString);
+              vis.pack();
+              RefineryUtilities.centerFrameOnScreen(vis);
+              vis.setVisible(true);
             }
             // System.out.println("  Traffic:");
             // for (SiteMeasurement sm : sms) {

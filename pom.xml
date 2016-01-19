@@ -28,7 +28,7 @@
     <dependency> <!-- Spark dependency -->
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_2.10</artifactId>
-      <version>1.5.1</version>
+      <version>1.6.0</version>
     </dependency>
     <dependency> <!-- Postgres JDBC dependency -->
       <groupId>org.postgresql</groupId>
@@ -55,5 +55,10 @@
       <artifactId>commons-net</artifactId>
       <version>3.4</version>
     </dependency>  
+    <dependency>
+      <groupId>org.jfree</groupId>
+      <artifactId>jfreechart</artifactId>
+      <version>1.0.19</version>
+    </dependency>
   </dependencies>
 </project>
