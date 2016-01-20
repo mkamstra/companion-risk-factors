@@ -39,6 +39,10 @@ public class SiteMeasurement implements Serializable {
 		mMeasuredValues.add(measuredValue);
 	}
 
+	public List<MeasuredValue> getMeasuredValues() {
+		return mMeasuredValues;
+	}
+
 	@Override
 	public String toString() {
 	    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());

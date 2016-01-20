@@ -366,16 +366,6 @@ public class CompanionRiskFactors {
     }
   }
 
-  private static void waitForUserInput() {
-    Scanner scan = new Scanner(System.in);
-    System.out.println("Continue by pressing any key followed by ENTER");
-    try {
-      scan.nextInt();
-    } catch (Exception ex) {
-      // Not important to write anything
-    }
-  }
-
   /**
    * Get the speed traffic data from the NDW site
    */
@@ -389,13 +379,13 @@ public class CompanionRiskFactors {
     //   System.out.println(trafficFileName);
     // }
     // TODO MK: Remove the following lines again as they are just there to reduce the processing time while testing
+    relevantFiles = relevantFiles.stream().filter(filename -> filename.contains("00_") || filename.contains("10_") || filename.contains("20_") || filename.contains("30_") || filename.contains("40_") || filename.contains("50_")).collect(Collectors.toList());
     //relevantFiles = relevantFiles.subList(0,2);
-    relevantFiles = relevantFiles.stream().filter(filename -> filename.contains("1400") || filename.contains("1401")).collect(Collectors.toList());
-    relevantFiles = relevantFiles.subList(0,2);
     System.out.println("Relevant files: ");
     for (String trafficFileName : relevantFiles) {
       System.out.println(trafficFileName);
     }
+    // waitForUserInput();
     // try {
     //   System.out.println("Putting app to sleep for 100 seconds again");
     //   Thread.sleep(100000);
@@ -509,6 +499,8 @@ public class CompanionRiskFactors {
     // Remove the hours from the URL as the KNMI API implies that only these hours for the days are being fetched (e.g 2016010114 - 2016010116 implies from 14 to 16 each day, not including the other hours in between start and end date)
     final String startDateWithoutHours = startDate.substring(0, 8);
     final String endDateWithoutHours = endDate.substring(0, 8);
+    String startDateWithCorrectedHours = startDateWithoutHours + "01";
+    String endDateWithCorrectedHours = endDateWithoutHours + "24";
     System.out.println("getWeatherKNMIObservations - start date without hours: " + startDateWithoutHours + ", end date without hours: " + endDateWithoutHours);
     String startHourString = startDate.substring(8);
     String endHourString = endDate.substring(8);
@@ -525,8 +517,8 @@ public class CompanionRiskFactors {
     final int endHour = endHourFromArgs;
     System.out.println("getWeatherKNMIObservations - Start hour from args: " + startHour + ", end hour: " + endHour);
 
-    urlParameters.add(new BasicNameValuePair("start", startDateWithoutHours));
-    urlParameters.add(new BasicNameValuePair("end", endDateWithoutHours));
+    urlParameters.add(new BasicNameValuePair("start", startDateWithCorrectedHours));
+    urlParameters.add(new BasicNameValuePair("end", endDateWithCorrectedHours));
     urlParameters.add(new BasicNameValuePair("vars", "ALL"));
     urlParameters.add(new BasicNameValuePair("stns", "ALL"));
     post.setHeader("User-Agent", USER_AGENT);
@@ -581,12 +573,16 @@ public class CompanionRiskFactors {
                 try {
                   int hourObservation = Integer.valueOf(hourString.trim());
                   String timeString = dateString + String.format("%02d", hourObservation);
+                  // System.out.println("timeString: " + timeString + ", dateString: " + dateString + ", startDateWithoutHours: " + startDateWithoutHours + ", endDateWithoutHours: " + endDateWithoutHours + ", hourObservation: " + hourObservation);
+                  // waitForUserInput();
                   if (dateString.equals(startDateWithoutHours)) {
                     // First day, so only take the relevant hours
                     if (hourObservation < startHour) {
                       forThisStation = false;
                     }
-                  } else if (dateString.equals(endDateWithoutHours)) {
+                  } 
+                  // Not an else as on the same day this might lead to problems not reaching this condition
+                  if (dateString.equals(endDateWithoutHours)) {
                     // Last day, so only take the relevant hours
                     if (hourObservation > endHour) {
                       forThisStation = false;
@@ -629,6 +625,98 @@ public class CompanionRiskFactors {
   public static void printHelp(Options options) {
     HelpFormatter formatter = new HelpFormatter();
     formatter.printHelp("The following flags are available:", options);
+  }
+
+  private static int relateTrafficToWeatherObservation(String wo, Visualiser vis, List<SiteMeasurement> sms, int hours) {
+    try {
+      String[] woElements = wo.split(",");
+      if (woElements.length == 25) {
+        String dateString = woElements[1].trim();
+        String hourString = woElements[2].trim();
+        String windspeedString = woElements[5].trim(); // Wind speed in 0.1 m/s
+        int windspeed01 = Integer.valueOf(windspeedString);
+        double windspeed = windspeed01 / 10.0;
+        String temperatureString = woElements[7].trim(); // Temperature in 0.1 Celsius
+        int temperature01 = Integer.valueOf(temperatureString);
+        double temperature = temperature01 / 10.0;
+        hours = Integer.valueOf(hourString);
+        String precipitationString = woElements[13].trim(); // Precipitation in 0.1 mm/h
+        int precipitation01 = Integer.valueOf(precipitationString);
+        double precipitation = Math.max(0.0, precipitation01 / 10.0); // Can be negative: -1 means < 0.05 mm/h, but we ignore that for now
+
+        String timeEndString = dateString + String.format("%02d", hours);
+        String timeStartString = dateString + String.format("%02d", hours - 1);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHH").withZone(ZoneId.systemDefault());
+        Instant timeStart = formatter.parse(timeStartString, ZonedDateTime::from).toInstant();
+        Instant timeEnd = formatter.parse(timeEndString, ZonedDateTime::from).toInstant();
+        vis.addTemperatureRecord(timeEnd, temperature);
+        vis.addPrecipitationRecord(timeEnd, precipitation);
+        vis.addWindspeedRecord(timeEnd, windspeed);
+        System.out.println("Just added for hour " + timeEndString + " : temperature = " + temperature + ", precipitation = " + precipitation + ", windspeed = " + windspeed);
+        //waitForUserInput();
+        System.out.println("    --------- Weather observation and traffic measurements for the same hour -----------" + wo);
+        System.out.println("    " + wo);
+        DateTimeFormatter formatterComplete = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
+        try {
+          int hour = Integer.valueOf(hourString.trim());
+          List<SiteMeasurement> relevantSms = new ArrayList<SiteMeasurement>();
+          for (SiteMeasurement sm : sms) {
+            Instant timeSm = sm.getMeasurementTimeDefault();
+            if ((timeSm.isAfter(timeStart) && timeSm.isBefore(timeEnd)) || timeSm.equals(timeStart) || timeSm.equals(timeEnd)) {
+              // This traffic measurement is in the same hour as the weather observation
+              System.out.println("      " + sm);
+              List<MeasuredValue> mvs = sm.getMeasuredValues();
+              double sumSpeed = 0;
+              int nrOfSpeeds = 0;
+              for (MeasuredValue mv : mvs) {
+                String type = mv.getType();
+                if (type.equalsIgnoreCase("TrafficSpeed")) {
+                  double speed = mv.getValue();
+                  if (speed < 0)
+                    continue;
+                  else {
+                    sumSpeed += speed;
+                    nrOfSpeeds++;
+                  }
+                }
+              }
+              double averageSpeed = 0.0;
+              if (nrOfSpeeds > 0)
+                averageSpeed = sumSpeed / (double) nrOfSpeeds;
+
+              System.out.println("Adding speed record: " + formatterComplete.format(timeSm) + ", speed: " + averageSpeed);
+              //waitForUserInput();
+
+              vis.addTrafficspeedRecord(timeSm, averageSpeed);
+              relevantSms.add(sm);
+            }
+          }
+        } catch (Exception ex) {
+          System.err.println("Weather record hour should only contain integer values");
+          ex.printStackTrace();
+        }
+      }
+    } catch (Exception ex) {
+      ex.printStackTrace();
+    }
+    return hours;
+  }
+
+  private static void plot(Visualiser vis, String ndwId, String startDateString, String endDateString) {
+    vis.create(ndwId, startDateString, endDateString);
+    vis.pack();
+    RefineryUtilities.centerFrameOnScreen(vis);
+    vis.setVisible(true);
+  }
+
+  private static void waitForUserInput() {
+    Scanner scan = new Scanner(System.in);
+    System.out.println("Continue by pressing any key followed by ENTER");
+    try {
+      scan.nextInt();
+    } catch (Exception ex) {
+      // Not important to write anything
+    }
   }
 
   /**
@@ -789,66 +877,17 @@ public class CompanionRiskFactors {
             Visualiser vis = new Visualiser("Weather and traffic at measurement site " + ndwId);
             int hours = -1;
             for (String wo : wos) {
-              try {
-                String[] woElements = wo.split(",");
-                if (woElements.length == 25) {
-                  String dateString = woElements[1].trim();
-                  String hourString = woElements[2].trim();
-                  String windspeedString = woElements[5].trim(); // Wind speed in 0.1 m/s
-                  int windspeed01 = Integer.valueOf(windspeedString);
-                  double windspeed = windspeed01 / 10.0;
-                  String temperatureString = woElements[7].trim(); // Temperature in 0.1 Celsius
-                  int temperature01 = Integer.valueOf(temperatureString);
-                  double temperature = temperature01 / 10.0;
-                  hours = Integer.valueOf(hourString);
-                  String precipitationString = woElements[13].trim(); // Precipitation in 0.1 mm/h
-                  int precipitation01 = Integer.valueOf(precipitationString);
-                  double precipitation = Math.max(0.0, precipitation01 / 10.0); // Can be negative: -1 means < 0.05 mm/h, but we ignore that for now
-
-                  String timeEndString = dateString + String.format("%02d", hours);
-                  String timeStartString = dateString + String.format("%02d", hours - 1);
-                  Instant timeStart = formatter.parse(timeStartString, ZonedDateTime::from).toInstant();
-                  Instant timeEnd = formatter.parse(timeEndString, ZonedDateTime::from).toInstant();
-                  vis.addTemperatureRecord(timeEnd, temperature);
-                  vis.addPrecipitationRecord(timeEnd, precipitation);
-                  vis.addWindspeedRecord(timeEnd, windspeed);
-                  System.out.println("Just added for hour " + timeEndString + " : temperature = " + temperature + ", precipitation = " + precipitation + ", windspeed = " + windspeed);
-                  //waitForUserInput();
-                  System.out.println("    --------- Weather observation and traffic measurements for the same hour -----------" + wo);
-                  System.out.println("    " + wo);
-                  try {
-                    int hour = Integer.valueOf(hourString.trim());
-                    for (SiteMeasurement sm : sms) {
-                      Instant timeSm = sm.getMeasurementTimeDefault();
-                      if ((timeSm.isAfter(timeStart) && timeSm.isBefore(timeEnd)) || timeSm.equals(timeStart) || timeSm.equals(timeEnd)) {
-                        // This traffic measurement is in the same hour as the weather observation
-                        System.out.println("      " + sm);
-                      }
-                    }
-                  } catch (Exception ex) {
-                    System.err.println("Weather record hour should only contain integer values");
-                    ex.printStackTrace();
-                  }
-                }
-              } catch (Exception ex) {
-                ex.printStackTrace();
-              }
+              hours = relateTrafficToWeatherObservation(wo, vis, sms, hours);
               if (hours == 0) {
                 // A new day has started, so plot of the previous day can be shown
                 System.out.println("Plotting due to new day");
-                vis.create(ndwId, startDateString, endDateString);
-                vis.pack();
-                RefineryUtilities.centerFrameOnScreen(vis);
-                vis.setVisible(true);
+                plot(vis, ndwId, startDateString, endDateString);
               }
             }
             // Finished, so certainly show the plot
             if (hours != 0) {
               System.out.println("Plotting due to end of loop");
-              vis.create(ndwId, startDateString, endDateString);
-              vis.pack();
-              RefineryUtilities.centerFrameOnScreen(vis);
-              vis.setVisible(true);
+              plot(vis, ndwId, startDateString, endDateString);
             }
             // System.out.println("  Traffic:");
             // for (SiteMeasurement sm : sms) {
