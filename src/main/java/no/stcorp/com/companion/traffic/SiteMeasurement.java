@@ -45,11 +45,11 @@ public class SiteMeasurement implements Serializable {
 
 	@Override
 	public String toString() {
-	    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
-	    String measurementValuesString = "";
-	    for (MeasuredValue mv : mMeasuredValues) {
-	    	measurementValuesString += mv + " ";
-	    }
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
+    String measurementValuesString = "";
+    for (MeasuredValue mv : mMeasuredValues) {
+    	measurementValuesString += mv + " ";
+    }
 		return mMeasurementSiteReference + " (" + formatter.format(mMeasurementTimeDefault) + "): " + measurementValuesString;
 	}
 }

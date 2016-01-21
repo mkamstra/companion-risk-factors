@@ -4,7 +4,7 @@ import java.io.Serializable;
 
 public class MeasuredValue implements Serializable {
 
-  	private static final long serialVersionUID = 400L;
+ 	private static final long serialVersionUID = 400L;
 
 	private int mIndex;
 	private String mType;

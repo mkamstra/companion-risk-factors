@@ -627,7 +627,7 @@ public class CompanionRiskFactors {
     formatter.printHelp("The following flags are available:", options);
   }
 
-  private static int relateTrafficToWeatherObservation(String wo, Visualiser vis, List<SiteMeasurement> sms, int hours) {
+  private static int relateTrafficToWeatherObservation(String wo, TimeSeriesDataContainer tdc, List<SiteMeasurement> sms, int hours) {
     try {
       String[] woElements = wo.split(",");
       if (woElements.length == 25) {
@@ -649,9 +649,9 @@ public class CompanionRiskFactors {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHH").withZone(ZoneId.systemDefault());
         Instant timeStart = formatter.parse(timeStartString, ZonedDateTime::from).toInstant();
         Instant timeEnd = formatter.parse(timeEndString, ZonedDateTime::from).toInstant();
-        vis.addTemperatureRecord(timeEnd, temperature);
-        vis.addPrecipitationRecord(timeEnd, precipitation);
-        vis.addWindspeedRecord(timeEnd, windspeed);
+        tdc.addTemperatureRecord(timeEnd, temperature);
+        tdc.addPrecipitationRecord(timeEnd, precipitation);
+        tdc.addWindspeedRecord(timeEnd, windspeed);
         System.out.println("Just added for hour " + timeEndString + " : temperature = " + temperature + ", precipitation = " + precipitation + ", windspeed = " + windspeed);
         //waitForUserInput();
         System.out.println("    --------- Weather observation and traffic measurements for the same hour -----------" + wo);
@@ -687,7 +687,7 @@ public class CompanionRiskFactors {
               System.out.println("Adding speed record: " + formatterComplete.format(timeSm) + ", speed: " + averageSpeed);
               //waitForUserInput();
 
-              vis.addTrafficspeedRecord(timeSm, averageSpeed);
+              tdc.addTrafficspeedRecord(timeSm, averageSpeed);
               relevantSms.add(sm);
             }
           }
@@ -704,29 +704,31 @@ public class CompanionRiskFactors {
 
   public static void testPlotting() {
     String ndwId = "TestSiteNDW";
-    Visualiser vis = new Visualiser("Weather and traffic at measurement site " + ndwId);
     String timeStartString = "20160110";
     String timeEndString = "20160119";
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHH").withZone(ZoneId.systemDefault());
     DateTimeFormatter formatterComplete = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
+    TimeSeriesDataContainer tdc = new TimeSeriesDataContainer();
     for (int day = 10; day <= 19; day++) {
       for (int hour = 0; hour <= 23; hour++) {
         double temperature = 8.0 + 2.0 * Math.random();
         double precipitation = Math.max(0.0, (Math.random() - 0.9) * 100.0);
         double windspeed = 3.0 + (Math.random() - 0.5) * 4.0;
         Instant timeObservation = formatter.parse("201601" + String.format("%02d", day) + String.format("%02d", hour), ZonedDateTime::from).toInstant();
-        vis.addTemperatureRecord(timeObservation, temperature);
-        vis.addPrecipitationRecord(timeObservation, precipitation);
-        vis.addWindspeedRecord(timeObservation, windspeed);
+        tdc.addTemperatureRecord(timeObservation, temperature);
+        tdc.addPrecipitationRecord(timeObservation, precipitation);
+        tdc.addWindspeedRecord(timeObservation, windspeed);
         for (int minute = 0; minute < 60; minute += 20) {
           String timeTrafficString = "2016-01-" + String.format("%02d", day) + " " + String.format("%02d", hour) + ":" + String.format("%02d", minute) + ":" + "00";
           Instant timeTraffic = formatterComplete.parse(timeTrafficString, ZonedDateTime::from).toInstant();
           double averageSpeed = 70.0 + (Math.random() - 0.5) * 40.0;
-          vis.addTrafficspeedRecord(timeTraffic, averageSpeed);
+          tdc.addTrafficspeedRecord(timeTraffic, averageSpeed);
         }
       }
     }
-    plot(vis, ndwId, timeStartString, timeEndString, true);
+    tdc.writeDataToFile(ndwId, timeStartString, timeEndString); 
+    TimeSeriesPlotter tsp = new TimeSeriesPlotter("Weather and traffic at measurement site " + ndwId);
+    tsp.plot(ndwId, timeStartString, timeEndString, tdc);
   }
 
   public static void testReadDataAndPlot() {
@@ -736,21 +738,15 @@ public class CompanionRiskFactors {
     String fileNamePrecipitation = "/tmp/PRECIPITATION_TestSiteNDW_20160110_20160119.bos";
     String fileNameWindspeed = "/tmp/WINDSPEED_TestSiteNDW_20160110_20160119.bos";
     String ndwId = "TestSiteNDW";
-    Visualiser vis = new Visualiser("Weather and traffic at measurement site " + ndwId);
     String timeStartString = "20160110";
     String timeEndString = "20160119";
-    vis.importDataSeries(Visualiser.SeriesType.TRAFFICSPEED, fileNameTrafficspeed);
-    vis.importDataSeries(Visualiser.SeriesType.TEMPERATURE, fileNameTemperature);
-    vis.importDataSeries(Visualiser.SeriesType.PRECIPITATION, fileNamePrecipitation);
-    vis.importDataSeries(Visualiser.SeriesType.WINDSPEED, fileNameWindspeed);
-    plot(vis, ndwId, timeStartString, timeEndString, false);
-  }
-
-  private static void plot(Visualiser vis, String ndwId, String startDateString, String endDateString, boolean pSaveToFile) {
-    vis.create(ndwId, startDateString, endDateString, pSaveToFile);
-    vis.pack();
-    RefineryUtilities.centerFrameOnScreen(vis);
-    vis.setVisible(true);
+    TimeSeriesDataContainer tdc = new TimeSeriesDataContainer();
+    tdc.importDataSeries(TimeSeriesDataContainer.SeriesType.TRAFFICSPEED, fileNameTrafficspeed);
+    tdc.importDataSeries(TimeSeriesDataContainer.SeriesType.TEMPERATURE, fileNameTemperature);
+    tdc.importDataSeries(TimeSeriesDataContainer.SeriesType.PRECIPITATION, fileNamePrecipitation);
+    tdc.importDataSeries(TimeSeriesDataContainer.SeriesType.WINDSPEED, fileNameWindspeed);
+    TimeSeriesPlotter tsp = new TimeSeriesPlotter("Weather and traffic at measurement site " + ndwId);
+    tsp.plot(ndwId, timeStartString, timeEndString, tdc);
   }
 
   private static void waitForUserInput() {
@@ -875,7 +871,7 @@ public class CompanionRiskFactors {
         List<MeasurementSite> msPatternMatchingList = dbMgr.getMeasurementPointsForNdwidPattern(ndwIdPattern);
         kmlGenerator.generateKmlForMeasurementSites(msPatternMatchingList);
       } else if (cmd.hasOption("testplot")) {
-        // testPlotting();
+        //testPlotting();
         testReadDataAndPlot();
       } else if (cmd.hasOption("proc")) {
         String[] arguments = cmd.getOptionValues("proc");
@@ -922,29 +918,22 @@ public class CompanionRiskFactors {
             // # STN,YYYYMMDD,   HH,   DD,   FH,   FF,   FX,    T,  T10,   TD,   SQ,    Q,   DR,   RH,    P,   VV,    N,    U,   WW,   IX,    M,    R,    S,    O,    Y
             // Loop over the weather observations which are sorted in time
             // Create a plot for each day
-            Visualiser vis = new Visualiser("Weather and traffic at measurement site " + ndwId);
+            TimeSeriesDataContainer tdc = new TimeSeriesDataContainer();
+            TimeSeriesPlotter tsp = new TimeSeriesPlotter("Weather and traffic at measurement site " + ndwId);
             int hours = -1;
             for (String wo : wos) {
-              hours = relateTrafficToWeatherObservation(wo, vis, sms, hours);
+              hours = relateTrafficToWeatherObservation(wo, tdc, sms, hours);
               if (hours == 0) {
                 // A new day has started, so plot of the previous day can be shown
                 System.out.println("Plotting due to new day");
-                plot(vis, ndwId, startDateString, endDateString, true);
+                tsp.plot(ndwId, startDateString, endDateString, tdc);
               }
             }
             // Finished, so certainly show the plot
             if (hours != 0) {
               System.out.println("Plotting due to end of loop");
-              plot(vis, ndwId, startDateString, endDateString, true);
+              tsp.plot(ndwId, startDateString, endDateString, tdc);
             }
-            // System.out.println("  Traffic:");
-            // for (SiteMeasurement sm : sms) {
-            //   System.out.println("    " + sm);
-            // }
-            // System.out.println("  Weather:");
-            // for (String wo : wos) {
-            //   System.out.println("    " + wo);
-            // }
           } else {
             System.err.println("  No weather observations for this measurement site");
           }
