@@ -702,8 +702,52 @@ public class CompanionRiskFactors {
     return hours;
   }
 
-  private static void plot(Visualiser vis, String ndwId, String startDateString, String endDateString) {
-    vis.create(ndwId, startDateString, endDateString);
+  public static void testPlotting() {
+    String ndwId = "TestSiteNDW";
+    Visualiser vis = new Visualiser("Weather and traffic at measurement site " + ndwId);
+    String timeStartString = "20160110";
+    String timeEndString = "20160119";
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHH").withZone(ZoneId.systemDefault());
+    DateTimeFormatter formatterComplete = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
+    for (int day = 10; day <= 19; day++) {
+      for (int hour = 0; hour <= 23; hour++) {
+        double temperature = 8.0 + 2.0 * Math.random();
+        double precipitation = Math.max(0.0, (Math.random() - 0.9) * 100.0);
+        double windspeed = 3.0 + (Math.random() - 0.5) * 4.0;
+        Instant timeObservation = formatter.parse("201601" + String.format("%02d", day) + String.format("%02d", hour), ZonedDateTime::from).toInstant();
+        vis.addTemperatureRecord(timeObservation, temperature);
+        vis.addPrecipitationRecord(timeObservation, precipitation);
+        vis.addWindspeedRecord(timeObservation, windspeed);
+        for (int minute = 0; minute < 60; minute += 20) {
+          String timeTrafficString = "2016-01-" + String.format("%02d", day) + " " + String.format("%02d", hour) + ":" + String.format("%02d", minute) + ":" + "00";
+          Instant timeTraffic = formatterComplete.parse(timeTrafficString, ZonedDateTime::from).toInstant();
+          double averageSpeed = 70.0 + (Math.random() - 0.5) * 40.0;
+          vis.addTrafficspeedRecord(timeTraffic, averageSpeed);
+        }
+      }
+    }
+    plot(vis, ndwId, timeStartString, timeEndString, true);
+  }
+
+  public static void testReadDataAndPlot() {
+    System.out.println("Test reading data from file");
+    String fileNameTrafficspeed = "/tmp/TRAFFICSPEED_TestSiteNDW_20160110_20160119.bos";
+    String fileNameTemperature = "/tmp/TEMPERATURE_TestSiteNDW_20160110_20160119.bos";
+    String fileNamePrecipitation = "/tmp/PRECIPITATION_TestSiteNDW_20160110_20160119.bos";
+    String fileNameWindspeed = "/tmp/WINDSPEED_TestSiteNDW_20160110_20160119.bos";
+    String ndwId = "TestSiteNDW";
+    Visualiser vis = new Visualiser("Weather and traffic at measurement site " + ndwId);
+    String timeStartString = "20160110";
+    String timeEndString = "20160119";
+    vis.importDataSeries(Visualiser.SeriesType.TRAFFICSPEED, fileNameTrafficspeed);
+    vis.importDataSeries(Visualiser.SeriesType.TEMPERATURE, fileNameTemperature);
+    vis.importDataSeries(Visualiser.SeriesType.PRECIPITATION, fileNamePrecipitation);
+    vis.importDataSeries(Visualiser.SeriesType.WINDSPEED, fileNameWindspeed);
+    plot(vis, ndwId, timeStartString, timeEndString, false);
+  }
+
+  private static void plot(Visualiser vis, String ndwId, String startDateString, String endDateString, boolean pSaveToFile) {
+    vis.create(ndwId, startDateString, endDateString, pSaveToFile);
     vis.pack();
     RefineryUtilities.centerFrameOnScreen(vis);
     vis.setVisible(true);
@@ -762,6 +806,7 @@ public class CompanionRiskFactors {
     options.addOption("ts", false, "Get speed measurements from NDW");
     options.addOption("wo", false, "Get weather observations from KNMI");
     options.addOption("link", false, "Link measurement sites with weather observations");
+    options.addOption("testplot", false, "Test plotting of time series");
     options.addOption("kml", false, "Generate KML files for the weather stations and measurement sites");
     //options.addOption("proc", false, "Run a processing sequence: fetch weather and traffic data ...");
     Option procOption = OptionBuilder.withDescription("Run a processing sequence: fetch weather and traffic data ... Provide as arguments start and end date in format: yyyy-MM-dd-HH; separate arguments by comma")
@@ -829,6 +874,9 @@ public class CompanionRiskFactors {
         kmlGenerator.generateKmlForMeasurementSites(msAreaList);
         List<MeasurementSite> msPatternMatchingList = dbMgr.getMeasurementPointsForNdwidPattern(ndwIdPattern);
         kmlGenerator.generateKmlForMeasurementSites(msPatternMatchingList);
+      } else if (cmd.hasOption("testplot")) {
+        // testPlotting();
+        testReadDataAndPlot();
       } else if (cmd.hasOption("proc")) {
         String[] arguments = cmd.getOptionValues("proc");
         if (arguments.length != 2) {
@@ -881,13 +929,13 @@ public class CompanionRiskFactors {
               if (hours == 0) {
                 // A new day has started, so plot of the previous day can be shown
                 System.out.println("Plotting due to new day");
-                plot(vis, ndwId, startDateString, endDateString);
+                plot(vis, ndwId, startDateString, endDateString, true);
               }
             }
             // Finished, so certainly show the plot
             if (hours != 0) {
               System.out.println("Plotting due to end of loop");
-              plot(vis, ndwId, startDateString, endDateString);
+              plot(vis, ndwId, startDateString, endDateString, true);
             }
             // System.out.println("  Traffic:");
             // for (SiteMeasurement sm : sms) {

@@ -1,5 +1,8 @@
 package no.stcorp.com.companion.visualization;
 
+import java.io.*;
+import java.nio.file.*;
+
 import java.awt.Font;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -28,12 +31,19 @@ import org.jfree.ui.ApplicationFrame;
 import org.jfree.ui.RefineryUtilities;
 
 public class Visualiser extends ApplicationFrame {
+  	private static final long serialVersionUID = 900L;
 
-    final TimeSeries temperatureSeries = new TimeSeries("Temperature (C)", Hour.class);
-    final TimeSeries precipitationSeries = new TimeSeries("Precipitation (mm/h)", Hour.class);
-    final TimeSeries windspeedSeries = new TimeSeries("Wind Speed (m/s)", Hour.class);
-    final TimeSeries trafficspeedSeries = new TimeSeries("Traffic speed (km/h)", Minute.class);
+	public enum SeriesType {
+	  TRAFFICSPEED, 
+	  TEMPERATURE, 
+	  PRECIPITATION, 
+	  WINDSPEED;
+	}
 
+    TimeSeries temperatureSeries = new TimeSeries("Temperature (C)");
+    TimeSeries precipitationSeries = new TimeSeries("Precipitation (mm/h)");
+    TimeSeries windspeedSeries = new TimeSeries("Wind Speed (m/s)");
+    TimeSeries trafficspeedSeries = new TimeSeries("Traffic speed (km/h)");
 
     /**
      * Constructs a new demonstration application.
@@ -44,14 +54,82 @@ public class Visualiser extends ApplicationFrame {
         super(title);
     }
 
+    public void importDataSeries(SeriesType pSeriesType, String pFileName) {
+    	try {
+	    	Path path = Paths.get(pFileName);
+	    	byte[] byteArray = Files.readAllBytes(path);
+	    	ObjectInput in = new ObjectInputStream(new ByteArrayInputStream(byteArray));
+    		switch (pSeriesType) {
+    			case TRAFFICSPEED:
+    				trafficspeedSeries = (TimeSeries) in.readObject();
+    				break;
+    			case TEMPERATURE:
+    				temperatureSeries = (TimeSeries) in.readObject();
+    				break;
+    			case PRECIPITATION:
+    				precipitationSeries = (TimeSeries) in.readObject();
+    				break;
+    			case WINDSPEED:
+    				windspeedSeries = (TimeSeries) in.readObject();
+    				break;
+    			default:
+    				break;
+	    	}
+	    	in.close();
+	    } catch (Exception ex) {
+	    	ex.printStackTrace();
+	    }
+    }
+
 	/**
 	 * Create the chart after all data has been filled
 	 */
-    public void create(String pNdwId, String pStartDate, String pEndDate) {
-        final JFreeChart chart = createOverlaidChart(pNdwId, pStartDate, pEndDate);
+    public void create(String pNdwId, String pStartDate, String pEndDate, boolean pSaveToFile) {
+        final JFreeChart chart = createOverlaidChart(pNdwId, pStartDate, pEndDate, pSaveToFile);
         final ChartPanel panel = new ChartPanel(chart, true, true, true, true, true);
         panel.setPreferredSize(new java.awt.Dimension(800, 500));
         setContentPane(panel);
+    }
+
+    private void writeDataToFile(SeriesType pSeriesType, String pNdwId, String pStartDate, String pEndDate) {
+		OutputStream fileOutput = null;
+		ByteArrayOutputStream baos = null;
+		ObjectOutput out = null;
+    	try {
+    		String fileName = "/tmp/" + pSeriesType + "_" + pNdwId + "_" + pStartDate + "_" + pEndDate + ".bos";
+    		System.out.println("Writing chart data to file: " + fileName);
+    		fileOutput = new FileOutputStream(fileName);
+    		baos = new ByteArrayOutputStream();
+    		out = new ObjectOutputStream(baos);
+    		switch (pSeriesType) {
+    			case TRAFFICSPEED:
+    				out.writeObject(trafficspeedSeries);
+    				break;
+    			case TEMPERATURE:
+    				out.writeObject(temperatureSeries);
+    				break;
+    			case PRECIPITATION:
+    				out.writeObject(precipitationSeries);
+    				break;
+    			case WINDSPEED:
+    				out.writeObject(windspeedSeries);
+    				break;
+    			default:
+    				break;
+    		}
+    		baos.writeTo(fileOutput);
+    	} catch (Exception ex) {
+    		ex.printStackTrace();
+    	} finally {
+    		try {
+	    		out.close();
+	    		baos.close();
+	    		fileOutput.close();
+	    	} catch (Exception ex) {
+	    		System.err.println("Error closing output");
+	    		ex.printStackTrace();
+	    	}
+    	}
     }
 
     /**
@@ -59,23 +137,32 @@ public class Visualiser extends ApplicationFrame {
      *
      * @return The chart.
      */
-    private JFreeChart createOverlaidChart(String pNdwId, String pStartDate, String pEndDate) {
+    private JFreeChart createOverlaidChart(String pNdwId, String pStartDate, String pEndDate, boolean pSaveToFile) {
+    	// Serialize data to file to be able to retrieve it later
+    	if (pSaveToFile) {
+	    	writeDataToFile(SeriesType.TRAFFICSPEED, pNdwId, pStartDate, pEndDate);
+	    	writeDataToFile(SeriesType.TEMPERATURE, pNdwId, pStartDate, pEndDate);
+	    	writeDataToFile(SeriesType.PRECIPITATION, pNdwId, pStartDate, pEndDate);
+	    	writeDataToFile(SeriesType.WINDSPEED, pNdwId, pStartDate, pEndDate);
+		}
 
         // create plot ...
         // final IntervalXYDataset data1 = createDataset1();
         final DateAxis domainAxis = new DateAxis("Time");
         domainAxis.setTickMarkPosition(DateTickMarkPosition.MIDDLE);
         final ValueAxis rangeAxisTrafficspeed = new NumberAxis("Traffic speed (km/h)");
+        rangeAxisTrafficspeed.setLowerBound(trafficspeedSeries.getMinY());
+        rangeAxisTrafficspeed.setUpperBound(1.5 * trafficspeedSeries.getMaxY());
         final IntervalXYDataset dataTrafficspeed = new TimeSeriesCollection(trafficspeedSeries);
         final XYItemRenderer rendererHistogramTraffic = new XYBarRenderer(0.20);
-        rendererHistogramTraffic.setToolTipGenerator(
+        rendererHistogramTraffic.setBaseToolTipGenerator(
             new StandardXYToolTipGenerator(
                 StandardXYToolTipGenerator.DEFAULT_TOOL_TIP_FORMAT,
                 new SimpleDateFormat("yyyy-MM-dd"), new DecimalFormat("0.00")
             )
         );
         final XYItemRenderer rendererLineTraffic = new StandardXYItemRenderer();
-        rendererLineTraffic.setToolTipGenerator(
+        rendererLineTraffic.setBaseToolTipGenerator(
             new StandardXYToolTipGenerator(
                 StandardXYToolTipGenerator.DEFAULT_TOOL_TIP_FORMAT,
                 new SimpleDateFormat("yyyy-MM-dd"), new DecimalFormat("0.00")
@@ -83,12 +170,13 @@ public class Visualiser extends ApplicationFrame {
         );
         XYPlot plot = new XYPlot(dataTrafficspeed, domainAxis, rangeAxisTrafficspeed, rendererHistogramTraffic);
 
-
         final ValueAxis rangeAxisPrecipitation = new NumberAxis("Precipitation (mm/h)");
+        rangeAxisPrecipitation.setLowerBound(-2.5 * precipitationSeries.getMaxY());
+        rangeAxisPrecipitation.setUpperBound(1.2 * precipitationSeries.getMaxY());
         plot.setRangeAxis(1, rangeAxisPrecipitation);
         final IntervalXYDataset dataPrecipitation = new TimeSeriesCollection(precipitationSeries);
         final XYItemRenderer rendererHistogramPrecipitation = new XYBarRenderer(0.20);
-        rendererHistogramPrecipitation.setToolTipGenerator(
+        rendererHistogramPrecipitation.setBaseToolTipGenerator(
             new StandardXYToolTipGenerator(
                 StandardXYToolTipGenerator.DEFAULT_TOOL_TIP_FORMAT,
                 new SimpleDateFormat("yyyy-MM-dd"), new DecimalFormat("0.00")
@@ -104,10 +192,12 @@ public class Visualiser extends ApplicationFrame {
         // plot.addAnnotation(annotation);
 
         final ValueAxis rangeAxisTemperature = new NumberAxis("Temperature (C)");
+        rangeAxisTemperature.setLowerBound(-temperatureSeries.getMaxY());
+        rangeAxisTemperature.setUpperBound(1.2 * temperatureSeries.getMaxY());
         plot.setRangeAxis(2, rangeAxisTemperature);
         final IntervalXYDataset dataTemperature = new TimeSeriesCollection(temperatureSeries);
         final XYItemRenderer rendererLineTemperature = new StandardXYItemRenderer();
-        rendererLineTemperature.setToolTipGenerator(
+        rendererLineTemperature.setBaseToolTipGenerator(
             new StandardXYToolTipGenerator(
                 StandardXYToolTipGenerator.DEFAULT_TOOL_TIP_FORMAT,
                 new SimpleDateFormat("yyyy-MM-dd"), new DecimalFormat("0.00")
@@ -118,10 +208,12 @@ public class Visualiser extends ApplicationFrame {
         plot.setRenderer(2, rendererLineTemperature);
         
         final ValueAxis rangeAxisWindspeed = new NumberAxis("Wind speed (m/s)");
+        rangeAxisWindspeed.setLowerBound(-2.0 * windspeedSeries.getMaxY());
+        rangeAxisWindspeed.setUpperBound(1.2 * windspeedSeries.getMaxY());
         plot.setRangeAxis(3, rangeAxisWindspeed);
         final IntervalXYDataset dataWindspeed = new TimeSeriesCollection(windspeedSeries);
         final XYItemRenderer rendererLineWindspeed = new StandardXYItemRenderer();
-        rendererLineWindspeed.setToolTipGenerator(
+        rendererLineWindspeed.setBaseToolTipGenerator(
             new StandardXYToolTipGenerator(
                 StandardXYToolTipGenerator.DEFAULT_TOOL_TIP_FORMAT,
                 new SimpleDateFormat("yyyy-MM-dd"), new DecimalFormat("0.00")
