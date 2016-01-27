@@ -2,7 +2,7 @@ package no.stcorp.com.companion.xml;
 
 import no.stcorp.com.companion.database.DatabaseManager;
 import no.stcorp.com.companion.logging.*;
-import no.stcorp.com.companion.*;
+import no.stcorp.com.companion.traffic.*;
 
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.*;
@@ -22,15 +22,9 @@ public class TrafficNDWSpeedParser implements Function<String, List<SiteMeasurem
   private Map<String, Integer> mMeasurementSiteIds = new HashMap<String,Integer>();
 
 	public TrafficNDWSpeedParser() {
-		try {
-			CompanionLogger.setup(TrafficNDWSpeedParser.class.getName());
-			LOGGER.setLevel(Level.FINE);
-      mDbMgr = DatabaseManager.getInstance();
-      mMeasurementSiteIds = mDbMgr.getAllMeasurementSiteIdsFromDb();
-		} catch (IOException ex) {
-			ex.printStackTrace();
-			throw new RuntimeException("Problem creating log files");
-		}
+		LOGGER.setLevel(Level.FINE);
+    mDbMgr = DatabaseManager.getInstance();
+    mMeasurementSiteIds = mDbMgr.getAllMeasurementSiteIdsFromDb();
 	}
 
   public List<SiteMeasurement> call(String pXmlString) {

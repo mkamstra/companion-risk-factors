@@ -28,15 +28,9 @@ public class TrafficNDWCurrentMeasurementParser implements Function<String, List
   private DatabaseManager mDbMgr = null;
 
 	public TrafficNDWCurrentMeasurementParser() {
-		try {
-			CompanionLogger.setup(TrafficNDWCurrentMeasurementParser.class.getName());
-			LOGGER.setLevel(Level.INFO);
-      mDbMgr = DatabaseManager.getInstance();
-      mNdwTypes = mDbMgr.getNdwTypes();
-		} catch (IOException ex) {
-			ex.printStackTrace();
-			throw new RuntimeException("Problem creating log files;" + ex.getMessage());
-    }
+		LOGGER.setLevel(Level.INFO);
+    mDbMgr = DatabaseManager.getInstance();
+    mNdwTypes = mDbMgr.getNdwTypes();
 	}
 
   public List<MeasurementSite> call(String pXmlString) {

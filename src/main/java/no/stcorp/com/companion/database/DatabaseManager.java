@@ -20,13 +20,7 @@ public class DatabaseManager implements Serializable {
 
   private DatabaseManager() {
   	// Intentionally private to ensure singleton pattern
-    try {
-      CompanionLogger.setup(DatabaseManager.class.getName());
-      LOGGER.setLevel(Level.FINE);
-    } catch (IOException ex) {
-      ex.printStackTrace();
-      throw new RuntimeException("Problem creating log files;" + ex.getMessage());
-    }
+    LOGGER.setLevel(Level.FINE);
   }
 
   public static DatabaseManager getInstance() {

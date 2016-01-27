@@ -37,15 +37,9 @@ public class WeatherKNMIParser implements Function<String, String> {
 	private DatabaseManager mDbMgr = null;
 
  	public WeatherKNMIParser() {
- 		try {
-			CompanionLogger.setup(WeatherKNMIParser.class.getName());
-			LOGGER.setLevel(Level.INFO);
-		    mDbMgr = DatabaseManager.getInstance();
-		    LOGGER.info("Creating WeatherKNMIParser");
-		} catch (IOException ex) {
-			ex.printStackTrace();
-			throw new RuntimeException("Problem creating log files;" + ex.getMessage());
-    }
+		LOGGER.setLevel(Level.INFO);
+    mDbMgr = DatabaseManager.getInstance();
+    LOGGER.info("Creating WeatherKNMIParser");
  	}
 
   public String call(String pWeatherObservations) {

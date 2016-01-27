@@ -69,7 +69,7 @@ public class TimeSeriesPlotter extends ApplicationFrame {
     domainAxis.setTickMarkPosition(DateTickMarkPosition.MIDDLE);
     final ValueAxis rangeAxisTrafficspeed = new NumberAxis("Traffic speed (km/h)");
     TimeSeries trafficspeedSeries = tdc.getTrafficspeedSeries();
-    rangeAxisTrafficspeed.setLowerBound(trafficspeedSeries.getMinY());
+    rangeAxisTrafficspeed.setLowerBound(0.9 * trafficspeedSeries.getMinY());
     rangeAxisTrafficspeed.setUpperBound(1.5 * trafficspeedSeries.getMaxY());
     final IntervalXYDataset dataTrafficspeed = new TimeSeriesCollection(trafficspeedSeries);
     final XYItemRenderer rendererHistogramTraffic = new XYBarRenderer(0.20);

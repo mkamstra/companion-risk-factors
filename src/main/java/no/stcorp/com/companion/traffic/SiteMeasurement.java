@@ -1,4 +1,4 @@
-package no.stcorp.com.companion;
+package no.stcorp.com.companion.traffic;
 
 import java.io.Serializable;
 import java.util.List;
@@ -8,7 +8,7 @@ import java.time.format.*;
 
 
 public class SiteMeasurement implements Serializable {
-  	private static final long serialVersionUID = 500L;
+  private static final long serialVersionUID = 500L;
 
 	private String mMeasurementSiteReference;
 	private Instant mMeasurementTimeDefault;

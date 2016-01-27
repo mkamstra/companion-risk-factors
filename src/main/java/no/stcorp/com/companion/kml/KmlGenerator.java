@@ -19,7 +19,8 @@ import javax.xml.transform.Result;
 import javax.xml.transform.Source;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 
 
 /**
@@ -30,14 +31,8 @@ public class KmlGenerator {
 	private final static Logger LOGGER = Logger.getLogger(KmlGenerator.class.getName());
 
 	public KmlGenerator() {
- 		try {
-			CompanionLogger.setup(KmlGenerator.class.getName());
-			LOGGER.setLevel(Level.INFO);
-	    LOGGER.info("Creating KMl generator");
-		} catch (IOException ex) {
-			ex.printStackTrace();
-			throw new RuntimeException("Problem creating log files;" + ex.getMessage());
-    }
+		LOGGER.setLevel(Level.INFO);
+    LOGGER.info("Creating KMl generator");
 	}
 
 	public void generateKmlForWeatherStations(List<WeatherStation> weatherStations) {

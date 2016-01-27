@@ -1,4 +1,4 @@
-package no.stcorp.com.companion;
+package no.stcorp.com.companion.traffic;
 
 import java.io.Serializable;
 
