@@ -20,7 +20,7 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.util.EntityUtils;
 
 import org.apache.commons.cli.*;
-
+import org.apache.commons.io.*;
 import org.apache.commons.net.ftp.*;
 
 import org.apache.spark.api.java.*;
@@ -84,18 +84,13 @@ public class CompanionRiskFactors {
   }
 
   /**
-   * Run this program as follows: 
-   * /home/osboxes/Tools/spark-1.5.1/bin/spark-submit --driver-memory 2g --class "no.stcorp.com.companion.CompanionRiskFactors" 
-   *     --jars /home/osboxes/.m2/repository/org/postgresql/postgresql/9.4-1206-jdbc42/postgresql-9.4-1206-jdbc42.jar,
-   *     /home/osboxes/.m2/repository/org/apache/httpcomponents/httpclient/4.5.1/httpclient-4.5.1.jar,
-   *     /home/osboxes/.m2/repository/org/apache/httpcomponents/httpcore/4.4.4/httpcore-4.4.4.jar,
-   *     /home/osboxes/.m2/repository/commons-cli/commons-cli/1.3.1/commons-cli-1.3.1.jar 
-   *     --master local[*] target/CompanionWeatherTraffic-0.1.jar -proc 2016-01-08-15,2016-01-08-16
+   * See README.md for an up to date example of how to run this program
    *
    *    or one of the options: -tcm -ts -wo -link -kml -proc -se
    *
    * Note the --jars to indicate the additional jars that need to be loaded 
    * The driver-memory can be set to a larger value than the default 1g to avoid Java heap space problems
+   *
    */
   public static void main(String[] args) {
     /**
@@ -126,8 +121,11 @@ public class CompanionRiskFactors {
     options.addOption("ts", false, "Get speed measurements from NDW");
     options.addOption("wo", false, "Get weather observations from KNMI");
     options.addOption("link", false, "Link measurement sites with weather observations");
+    options.addOption("plot", false, "Plot generated data for measurement sites with traffic and weather data");
     options.addOption("kml", false, "Generate KML files for the weather stations and measurement sites");
     //options.addOption("proc", false, "Run a processing sequence: fetch weather and traffic data ...");
+    //@SuppressWarnings("deprecation") // For more information on this issue see: https://github.com/HariSekhon/spark-apps/blob/master/build.sbt
+    @SuppressWarnings({"deprecation", "static-method"}) 
     Option procOption = OptionBuilder.withDescription("Run a processing sequence: fetch weather and traffic data ... Provide as arguments start and end date in format: yyyy-MM-dd-HH; separate arguments by comma")
                                      .hasArgs(2)
                                      .withValueSeparator(',')
@@ -143,7 +141,9 @@ public class CompanionRiskFactors {
     }
     try {
       // CommandLineParser parser = new PosixParser(); // Should be using the DefaultParser, but this is generating an exception: Exception in thread "main" java.lang.IllegalAccessError: tried to access method org.apache.commons.cli.Options.getOptionGroups()Ljava/util/Collection; from class org.apache.commons.cli.DefaultParser
+      @SuppressWarnings("deprecation")
       CommandLineParser parser = new BasicParser(); // Should be using the DefaultParser, but this is generating an exception: Exception in thread "main" java.lang.IllegalAccessError: tried to access method org.apache.commons.cli.Options.getOptionGroups()Ljava/util/Collection; from class org.apache.commons.cli.DefaultParser
+      // For more information on this issue see: https://github.com/HariSekhon/spark-apps/blob/master/build.sbt
       CommandLine cmd = parser.parse(options, args, true);
 
       String ndwIdPattern = "RWS01_MONIBAS_0131hrl00%";
@@ -172,6 +172,86 @@ public class CompanionRiskFactors {
       } else if (cmd.hasOption("wo")) {
         WeatherRetrieverKNMI wrk = new WeatherRetrieverKNMI(sc);
         wrk.run(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
+      } else if (cmd.hasOption("plot")) {
+        try {
+          TimeSeriesFileSelector tsf = new TimeSeriesFileSelector();
+          File[] selectedFiles = tsf.selectFiles();
+          Map<String, TimeSeriesDataContainer> tdcPerNdw = new HashMap<String, TimeSeriesDataContainer>();
+          Map<String, Instant> startTimePerNdw = new HashMap<String, Instant>();
+          Map<String, Instant> endTimePerNdw = new HashMap<String, Instant>();
+          TimeSeriesDataContainer.SeriesType seriesType = null;
+          DateTimeFormatter fileNameFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH").withZone(ZoneId.systemDefault());
+          for (File file : selectedFiles) {
+            String fileName = file.getName();
+            if (fileName.toLowerCase().startsWith("trafficspeed")) {
+              seriesType = TimeSeriesDataContainer.SeriesType.TRAFFICSPEED;
+            } else if (fileName.toLowerCase().startsWith("temperature")) {
+              seriesType = TimeSeriesDataContainer.SeriesType.TEMPERATURE;
+            } else if (fileName.toLowerCase().startsWith("precipitation")) {
+              seriesType = TimeSeriesDataContainer.SeriesType.PRECIPITATION;
+            } else if (fileName.toLowerCase().startsWith("windspeed")) {
+              seriesType = TimeSeriesDataContainer.SeriesType.WINDSPEED;
+            }
+
+            // Get date and ndw id from file name
+            String baseName = FilenameUtils.getBaseName(fileName);
+            System.out.println("Base name: " + baseName);
+            int startOfEndDate = baseName.lastIndexOf("_") + 1;
+            String fileEndDateString = baseName.substring(startOfEndDate);
+            System.out.println("End date: " + fileEndDateString);
+            String remainingBaseName = baseName.substring(0, startOfEndDate - 1);
+            int startOfStartDate = remainingBaseName.lastIndexOf("_") + 1;
+            String fileStartDateString = remainingBaseName.substring(startOfStartDate);
+            System.out.println("Start date: " + fileStartDateString);
+            String baseNameWithoutDates = remainingBaseName.substring(0, startOfStartDate - 1);
+            int startOfNdwId = baseNameWithoutDates.indexOf("_");
+            String ndwId = baseNameWithoutDates.substring(startOfNdwId + 1);
+            System.out.println("NDW id: " + ndwId);
+
+            Instant startTime = fileNameFormatter.parse(fileStartDateString, ZonedDateTime::from).toInstant();
+            Instant endTime = fileNameFormatter.parse(fileEndDateString, ZonedDateTime::from).toInstant();
+
+            TimeSeriesDataContainer tdc = null;
+
+            if (tdcPerNdw.containsKey(ndwId)) {
+              tdc = tdcPerNdw.get(ndwId);
+            } else  {
+              tdc = new TimeSeriesDataContainer(); 
+              tdcPerNdw.put(ndwId, tdc);
+            }
+            System.out.println("TDC: " + tdc);
+
+            if (startTimePerNdw.containsKey(ndwId)) {
+              Instant existingStartTime = startTimePerNdw.get(ndwId);
+              if (startTime.isBefore(existingStartTime)) 
+                startTimePerNdw.put(ndwId, startTime);
+            } else {
+              startTimePerNdw.put(ndwId, startTime);
+            }
+
+            if (endTimePerNdw.containsKey(ndwId)) {
+              Instant existingEndTime = endTimePerNdw.get(ndwId);
+              if (endTime.isAfter(existingEndTime)) 
+                endTimePerNdw.put(ndwId, endTime);
+            } else {
+              endTimePerNdw.put(ndwId, endTime);
+            }
+
+            tdc.importDataSeries(seriesType, file.getPath());
+          }
+
+          for (Entry<String, TimeSeriesDataContainer> ndwTdcEntry : tdcPerNdw.entrySet()) {
+            String ndwId = ndwTdcEntry.getKey();
+            TimeSeriesDataContainer tdc = ndwTdcEntry.getValue();
+            Instant startTime = startTimePerNdw.get(ndwId);
+            Instant endTime = endTimePerNdw.get(ndwId);
+            TimeSeriesPlotter tsp = new TimeSeriesPlotter("Weather and traffic at measurement site " + ndwId);
+            tsp.plot(ndwId, fileNameFormatter.format(startTime), fileNameFormatter.format(endTime), tdc);
+          }
+        } catch (Exception ex) {
+          System.out.println("Something went wrong with plotting the selected files: " + ex.getMessage());
+          ex.printStackTrace();
+        }
       } else if (cmd.hasOption("link")) {
         // Add a link between all measurement sites and weather stations. Only needs to be done when measurement site and 
         // weather station tables have been filled without adding these links. Normally not needed to do this.

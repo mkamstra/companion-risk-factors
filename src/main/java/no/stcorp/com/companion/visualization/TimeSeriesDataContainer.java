@@ -32,18 +32,19 @@ public class TimeSeriesDataContainer {
 	    	Path path = Paths.get(pFileName);
 	    	byte[] byteArray = Files.readAllBytes(path);
 	    	ObjectInput in = new ObjectInputStream(new ByteArrayInputStream(byteArray));
+            TimeSeries tmpSeries = (TimeSeries) in.readObject();
     		switch (pSeriesType) {
     			case TRAFFICSPEED:
-    				trafficspeedSeries = (TimeSeries) in.readObject();
+    				trafficspeedSeries.addAndOrUpdate(tmpSeries) ;
     				break;
     			case TEMPERATURE:
-    				temperatureSeries = (TimeSeries) in.readObject();
+                    temperatureSeries.addAndOrUpdate(tmpSeries);
     				break;
     			case PRECIPITATION:
-    				precipitationSeries = (TimeSeries) in.readObject();
+                    precipitationSeries.addAndOrUpdate(tmpSeries);
     				break;
     			case WINDSPEED:
-    				windspeedSeries = (TimeSeries) in.readObject();
+                    windspeedSeries.addAndOrUpdate(tmpSeries);
     				break;
     			default:
     				break;

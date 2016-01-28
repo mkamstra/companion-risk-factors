@@ -10,7 +10,7 @@ import org.apache.spark.api.java.function.Function;
  */ 
 public class SparkExamplesRunner {
 
-  private JavaSparkContext mSparkContext;
+  private static JavaSparkContext mSparkContext;
 
   /**
    * Constructor
