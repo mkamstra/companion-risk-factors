@@ -1,5 +1,7 @@
 package no.stcorp.com.companion.spark;
 
+import java.io.*;
+
 import java.util.*;
 
 import org.apache.spark.api.java.*;
@@ -8,7 +10,7 @@ import org.apache.spark.api.java.function.Function;
 /** 
  * Run some Spark examples for checking if Spark functions as expected
  */ 
-public class SparkExamplesRunner {
+public class SparkExamplesRunner implements Serializable {
 
   private static JavaSparkContext mSparkContext;
 
@@ -48,12 +50,12 @@ public class SparkExamplesRunner {
      * 2. In Java 8, use lambda expressions to concisely define an implementation.
      */
     long numAs = logData.filter(new Function<String, Boolean>() {
-      private static final long serialVersionUID = 5L;
+      private static final long serialVersionUID = 51675674536574365L;
       public Boolean call(String s) { return s.contains("a"); }
     }).count();
 
     long numBs = logData.filter(new Function<String, Boolean>() {
-      private static final long serialVersionUID = 6L;
+      private static final long serialVersionUID = 69839048309483L;
       public Boolean call(String s) { return s.contains("b"); }
     }).count();
 
