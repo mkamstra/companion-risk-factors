@@ -13,7 +13,7 @@ The processing flow will link the weather and traffic data to traffic measuremen
 
 To be able to inspect the relations between the data the plot option is available. Data that has been previously generated will de saved to BOS files that baiscally contain the chart data for time series. The plotting option allows for merging multiple files of the same measurement site (NDW ids) to be able inspect longer intervals (as generating the data takes quite long).
 
-Run the program as follows:
+Run the program as follows (from the root of the software, ie. where you find this README.md file):
 
 /home/osboxes/Tools/spark-1.5.1/bin/spark-submit --driver-memory 2g --class "no.stcorp.com.companion.CompanionRiskFactors" --jars /home/osboxes/.m2/repository/org/postgresql/postgresql/9.4-1206-jdbc42/postgresql-9.4-1206-jdbc42.jar,/home/osboxes/.m2/repository/org/apache/httpcomponents/httpclient/4.5.1/httpclient-4.5.1.jar,/home/osboxes/.m2/repository/org/apache/httpcomponents/httpcore/4.4.4/httpcore-4.4.4.jar,/home/osboxes/.m2/repository/commons-cli/commons-cli/1.3.1/commons-cli-1.3.1.jar,/home/osboxes/.m2/repository/org/jfree/jfreechart/1.0.19/jfreechart-1.0.19.jar,/home/osboxes/.m2/repository/org/jfree/jcommon/1.0.23/jcommon-1.0.23.jar --master local[*] target/CompanionWeatherTraffic-0.1.jar -proc 2015-12-02-08,2015-12-02-09
 

@@ -57,9 +57,10 @@ public class CompanionRiskFactors {
    * @param pStartDate Input/output parameter to be set by this method
    * @param pEndDate Input/output parameter to be set by this method
    * @param The options the program accepts
+   * @return The parsed start date and end date as Instant objects (first start date followed by end date)
    * Parse the time arguments of the processing run option
    */
-  public static void parseProcessingArguments(String[] pArguments, Instant pStartDate, Instant pEndDate, Options pOptions) {
+  public static List<Instant> parseProcessingArguments(String[] pArguments, Instant pStartDate, Instant pEndDate, Options pOptions) {
     if (pArguments.length != 2) {
       System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
       System.err.println("The option proc. needs two arguments in the form of times with format yyyy-MM-dd HH separated by a comma. This was not provided. Provided was: " + Arrays.toString(pArguments));
@@ -69,10 +70,14 @@ public class CompanionRiskFactors {
     }
     String startDateString = pArguments[0];
     String endDateString = pArguments[1];
+    List<Instant> returnDates = new ArrayList<Instant>();
     try {
       DateTimeFormatter cliFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH").withZone(ZoneId.systemDefault());
-      pStartDate = cliFormatter.parse(startDateString, ZonedDateTime::from).toInstant();
-      pEndDate = cliFormatter.parse(endDateString, ZonedDateTime::from).toInstant();
+      Instant startDate = cliFormatter.parse(startDateString, ZonedDateTime::from).toInstant();
+      Instant endDate = cliFormatter.parse(endDateString, ZonedDateTime::from).toInstant();
+      returnDates.add(startDate);
+      returnDates.add(endDate);
+      System.out.println("Start date: " + startDateString + ", end date: " + endDateString);
     } catch (DateTimeException ex) {
       System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
       System.out.println("Time should be formatted as yyyy-MM-dd-HH, but format provided was different: " + ex.getMessage());
@@ -81,6 +86,7 @@ public class CompanionRiskFactors {
       System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
       System.exit(-1);
     }
+    return returnDates;
   }
 
   /**
@@ -271,9 +277,12 @@ public class CompanionRiskFactors {
         kmlGenerator.generateKmlForMeasurementSites(msPatternMatchingList);
       } else if (cmd.hasOption("proc")) {
         String[] arguments = cmd.getOptionValues("proc");
-        parseProcessingArguments(arguments, startDate, endDate, options);
+        List<Instant> returnDates = parseProcessingArguments(arguments, startDate, endDate, options);
         startDateString = arguments[0];
         endDateString = arguments[1];
+        System.out.println("Start date: " + startDateString + ", end date: " + endDateString);
+        startDate = returnDates.get(0);
+        endDate = returnDates.get(1);
         startDateStringKNMI = formatterWeatherKNMI.format(startDate);
         endDateStringKNMI = formatterWeatherKNMI.format(endDate);
         System.out.println("Start date KNMI: " + startDateStringKNMI + " - end date KNMI: " + endDateStringKNMI + " (from command line)");

@@ -280,6 +280,9 @@ public class TrafficRetrieverNDW implements Serializable {
     relevantDays.add(pStartDate);
     // Days between start and end date
     long daysBetween = ChronoUnit.DAYS.between(pStartDate, pEndDate);
+    if (daysBetween == 0 && hoursEnd == 0)
+        hoursEnd = 24;
+
     for (long day = 1; day <= daysBetween; day++) {
       Instant extraDate = pStartDate.plus(day, ChronoUnit.DAYS);
       relevantDays.add(extraDate);
