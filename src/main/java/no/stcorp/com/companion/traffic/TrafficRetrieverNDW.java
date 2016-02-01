@@ -37,9 +37,10 @@ public class TrafficRetrieverNDW implements Serializable {
   /**
    * Download traffic current measurements from NDW. Is used for checking if the measurement sites are all
    * present in the database. If not they will be added.
-   * @param pFtpUrl The FTP address to download from 
+   * @param pFtpUrl The FTP address to download from exluding the folder of the day
+   * @param pDate The date to download for 
    */
-  public void runCurrentMeasurements(String pFtpUrl) {
+  public void runCurrentMeasurements(String pFtpUrl, Instant pDate) {
     // Current measurements for getting the measurement sites
     // Download data from NDW
     System.out.println("Trying to download gzip file containing measurements from NDW");
@@ -47,66 +48,135 @@ public class TrafficRetrieverNDW implements Serializable {
     System.out.println("Gzipped files will be downloaded to: " + rootDir);
 
     System.out.println("Downloading current measurements containing the measurement locations");
-    String measurementFileName = "measurement_current_2016_01_08_16_32_35_779.xml.gz"; //TODO MK: Remove hard coded file name
-    String measurementZipUrl = pFtpUrl + measurementFileName;
-    mSparkContext.addFile(measurementZipUrl);
-    String measurementFilePath = SparkFiles.get(measurementFileName);
-    System.out.println("Measurement file path: " + measurementFilePath);
-
-    JavaRDD<String> gzData = mSparkContext.textFile(measurementFilePath).cache(); // textFile should decompress gzip automatically
-    //System.out.println("Output: " + gzData.toString());
-    /**
-     * Another common idiom is attempting to print out the elements of an RDD using rdd.foreach(println) or rdd.map(println). 
-     * On a single machine, this will generate the expected output and print all the RDD’s elements. However, in cluster mode, 
-     * the output to stdout being called by the executors is now writing to the executor’s stdout instead, not the one on the 
-     * driver, so stdout on the driver won’t show these! To print all elements on the driver, one can use the collect() method 
-     * to first bring the RDD to the driver node thus: rdd.collect().foreach(println). This can cause the driver to run out of 
-     * memory, though, because collect() fetches the entire RDD to a single machine; if you only need to print a few elements 
-     * of the RDD, a safer approach is to use the take(): rdd.take(100).foreach(println).
-     */
+    DateTimeFormatter formatterAutomaticDownload = DateTimeFormatter.ofPattern("yyyy_MM_dd").withZone(ZoneId.systemDefault());
+    String dayFolderName = "//" + formatterAutomaticDownload.format(pDate) + "//";
+    // For now take a file close to 08.30 in the morning as this is often a busy time and a file with considerable data is expected
+    FTPClient ftpClient = new FTPClient();
+    List<String> relevantFiles = new ArrayList<String>();
+    String relevantFile = "";
     try {
-      List<String> gzDataList = gzData.collect(); 
-      System.out.println("Number of elements in gzData: " + gzDataList.size());
-
-      // Call the ParseTrafficSpeedXml class which is defined in another class to parse the traffic speed data
-      if (gzDataList.size() == 1) {
-        try {
-          JavaRDD<List<MeasurementSite>> measurementSites = gzData.map(new TrafficNDWCurrentMeasurementParser()); // Lazy, i.e. not executed before really needed
-          //System.out.println("Putting app to sleep for 10 seconds to see xml parsing not started yet");
-          Thread.sleep(100);
-          System.out.println("Starting to parse current measurement xml now");
-
-          // int nrOfRecords = siteMeasurements.reduce(new CountXmlRecords());
-          System.out.println("Total number of measurement site records: " + measurementSites.count()); // Only here the ParseTrafficSpeedXml is actually called and executed due to the count action
-        } catch (InterruptedException ex) {
-          System.out.println("Something went wrong putting the app to sleep for 10 seconds");
-          ex.printStackTrace();
-          Thread.currentThread().interrupt();
-        } catch (OutOfMemoryError ex) {
-          System.out.println("Ran out of memory while mapping the current measurements");
-          ex.printStackTrace();
-        }
+      ftpClient.connect("192.168.1.33");
+      ftpClient.enterLocalPassiveMode();
+      ftpClient.login("companion", "1d1ada");
+      System.out.println("Working directory FTP server (1): " + ftpClient.printWorkingDirectory());
+      ftpClient.changeWorkingDirectory("//Projects//companion//downloadedData//NDW//");
+      System.out.println("Working directory FTP server (2): " + ftpClient.printWorkingDirectory());
+      boolean directoryExists = ftpClient.changeWorkingDirectory("//Projects//companion//downloadedData//NDW//" + dayFolderName);
+      System.out.println("Working directory FTP server (3a): " + ftpClient.printWorkingDirectory());
+      // Check if folder exists
+      if (!directoryExists) {
+        System.out.println("Directory //Projects//companion//downloadedData//NDW//" + dayFolderName + " does not exist");
+        // No automatic folder, so return
+        return;
       }
-    } catch (OutOfMemoryError ex) {
-      System.out.println("Ran out of memory while parsing and counting the current measurements");
+      FTPFile[] allFtpFiles = ftpClient.listFiles();
+      ftpClient.logout();
+      System.out.println("Files in folder: " + allFtpFiles.length);
+      List<String> allFiles = new ArrayList<String>();
+      for (FTPFile ftpFile : allFtpFiles) {
+        // System.out.println(ftpFile.getName());
+        allFiles.add(ftpFile.getName());
+      }
+      System.out.println("Directory exists: " + directoryExists);
+
+      //  Filter by trafficspeed in name
+      List<String> filesForDay = allFiles.stream().filter(s -> s.contains("measurement_current")).collect(Collectors.toList());
+      // Filter by hour
+      int hour = 8;
+      String hourFilterBaseString = "measurement_current_" + formatterAutomaticDownload.format(pDate) + "_" + String.format("%02d", hour);
+      List<String> filesForHour = filesForDay.stream().filter(s -> s.contains(hourFilterBaseString)).collect(Collectors.toList());
+      System.out.println("Hour: " + hour + ", number of relevant files after filtering on hour: " + filesForHour.size() + " (" + hourFilterBaseString + ")");
+      int minute = 30;
+      final String minuteFilterBaseString = hourFilterBaseString + "_" + String.format("%02d", minute);
+      List<String> filesForMinute = filesForHour.stream().filter(s -> s.contains(minuteFilterBaseString)).collect(Collectors.toList());
+      System.out.println("Hour: " + hour + ", minute: " + minute + ", number of relevant files after filtering on hour and minute: " + filesForMinute.size() + " (" + minuteFilterBaseString + ")");
+      
+      // In case not available for that minute, then change minute until found
+      while (filesForMinute.size() == 0 && minute != 29) {
+        minute += 1;
+        if (minute == 60) 
+          minute = 0;
+
+        final String loopMinuteFilterBaseString = hourFilterBaseString + "_" + String.format("%02d", minute);
+        filesForMinute = filesForHour.stream().filter(s -> s.contains(loopMinuteFilterBaseString)).collect(Collectors.toList());
+        System.out.println("Hour: " + hour + ", minute: " + minute + ", number of relevant files after filtering on hour and minunte: " + filesForMinute.size());
+      } 
+      if (filesForMinute.size() > 0)
+        relevantFile = filesForMinute.get(0);
+
+      if (relevantFile.length() == 0)
+        return;
+
+      String measurementZipUrl = pFtpUrl +  dayFolderName + relevantFile;
+      System.out.println("Ftp file path for measurement file: " + measurementZipUrl);
+      mSparkContext.addFile(measurementZipUrl);
+      String measurementFilePath = SparkFiles.get(relevantFile);
+      System.out.println("Measurement file path: " + measurementFilePath);
+
+      JavaRDD<String> gzData = mSparkContext.textFile(measurementFilePath).cache(); // textFile should decompress gzip automatically
+      //System.out.println("Output: " + gzData.toString());
+      /**
+       * Another common idiom is attempting to print out the elements of an RDD using rdd.foreach(println) or rdd.map(println). 
+       * On a single machine, this will generate the expected output and print all the RDD’s elements. However, in cluster mode, 
+       * the output to stdout being called by the executors is now writing to the executor’s stdout instead, not the one on the 
+       * driver, so stdout on the driver won’t show these! To print all elements on the driver, one can use the collect() method 
+       * to first bring the RDD to the driver node thus: rdd.collect().foreach(println). This can cause the driver to run out of 
+       * memory, though, because collect() fetches the entire RDD to a single machine; if you only need to print a few elements 
+       * of the RDD, a safer approach is to use the take(): rdd.take(100).foreach(println).
+       */
+      try {
+        List<String> gzDataList = gzData.collect(); 
+        System.out.println("Number of elements in gzData: " + gzDataList.size());
+
+        // Call the ParseTrafficSpeedXml class which is defined in another class to parse the traffic speed data
+        if (gzDataList.size() == 1) {
+          try {
+            JavaRDD<List<MeasurementSite>> measurementSites = gzData.map(new TrafficNDWCurrentMeasurementParser()); // Lazy, i.e. not executed before really needed
+            //System.out.println("Putting app to sleep for 10 seconds to see xml parsing not started yet");
+            Thread.sleep(100);
+            System.out.println("Starting to parse current measurement xml now");
+
+            // int nrOfRecords = siteMeasurements.reduce(new CountXmlRecords());
+            System.out.println("Total number of measurement site records: " + measurementSites.count()); // Only here the ParseTrafficSpeedXml is actually called and executed due to the count action
+          } catch (InterruptedException ex) {
+            System.out.println("Something went wrong putting the app to sleep for 10 seconds");
+            ex.printStackTrace();
+            Thread.currentThread().interrupt();
+          } catch (OutOfMemoryError ex) {
+            System.out.println("Ran out of memory while mapping the current measurements");
+            ex.printStackTrace();
+          }
+        }
+      } catch (OutOfMemoryError ex) {
+        System.out.println("Ran out of memory while parsing and counting the current measurements");
+        ex.printStackTrace();
+      }
+
+      // JavaRDD<String> words = gzData.flatMap(new FlatMapFunction<String, String>() {
+      //   @Override
+      //   public Iterable<String> call(String s) {
+      //     return Arrays.asList(SPACE.split(s));
+      //   }
+      // });
+
+      // System.out.println("The contents of the unpacked file: ");
+      // List<String> wordList = words.collect();
+      // System.out.println("    Words collected into the following list: ");
+      // for (String word : wordList) {
+      //   System.out.println(word);
+      // }
+      //long sizesOfAllLines = gzData.map(s -> s.length()).reduce((a, b) -> a + b).count();
+      //System.out.println("Size: " + sizesOfAllLines);
+    } catch (IOException ex) {
       ex.printStackTrace();
+    } finally{
+      try {
+        ftpClient.disconnect();
+      } catch (IOException ex) {
+        ex.printStackTrace();
+      }
     }
 
-    // JavaRDD<String> words = gzData.flatMap(new FlatMapFunction<String, String>() {
-    //   @Override
-    //   public Iterable<String> call(String s) {
-    //     return Arrays.asList(SPACE.split(s));
-    //   }
-    // });
-
-    // System.out.println("The contents of the unpacked file: ");
-    // List<String> wordList = words.collect();
-    // System.out.println("    Words collected into the following list: ");
-    // for (String word : wordList) {
-    //   System.out.println(word);
-    // }
-    //long sizesOfAllLines = gzData.map(s -> s.length()).reduce((a, b) -> a + b).count();
-    //System.out.println("Size: " + sizesOfAllLines);
 
     try {
       System.out.println("Putting app to sleep for 10 seconds again");

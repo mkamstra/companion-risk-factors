@@ -169,8 +169,11 @@ public class CompanionRiskFactors {
         SparkExamplesRunner ser = new SparkExamplesRunner(sc);
         ser.run();
       } else if (cmd.hasOption("tcm")) {
+        // TODO: Add arguments
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
-        trn.runCurrentMeasurements(ftpUrl);
+        startDateString = "2016012901";
+        startDate = formatter.parse(startDateString, ZonedDateTime::from).toInstant();
+        trn.runCurrentMeasurements(ftpUrl, startDate);
       } else if (cmd.hasOption("ts")) {
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
         Map<String, List<SiteMeasurement>> speedMeasurements = trn.runTrafficNDWSpeed(ftpUrl, ndwIdPattern, startDate, endDate);

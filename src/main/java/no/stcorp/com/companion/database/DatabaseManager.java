@@ -131,8 +131,10 @@ public class DatabaseManager implements Serializable {
     List<MeasurementSite> addedMeasurementSites = new ArrayList<MeasurementSite>();
     for (MeasurementSite ms : measurementSites) {
       int addedRows = addMeasurementSiteToDb(ms);
-      if (addedRows > 0)
+      if (addedRows > 0) {
         addedMeasurementSites.add(ms);
+        LOGGER.fine("Added to database measurement site: " + ms.getNdwid());
+      }
 
       nrOfRowsAdded += addedRows;
     }
@@ -300,7 +302,8 @@ public class DatabaseManager implements Serializable {
     try {
       getConnection();
       Statement st = mConnection.createStatement();
-      String selectSql = "select measurementsite.id as msid, weatherstation.id as wsid from measurementsite,weatherstation where measurementside.ndwid = '" + ms.getNdwid() + "' order by measurementsite.location <-> weatherstation.location limit 1;";
+      Statement st2 = mConnection.createStatement();
+      String selectSql = "select measurementsite.id as msid, weatherstation.id as wsid from measurementsite,weatherstation where measurementsite.ndwid = '" + ms.getNdwid() + "' order by measurementsite.location <-> weatherstation.location limit 1;";
       LOGGER.finest("SQL statement to match measurement site with its closest weather station: " + selectSql);
       ResultSet rs = st.executeQuery(selectSql);
       while (rs.next()) {
@@ -309,7 +312,7 @@ public class DatabaseManager implements Serializable {
         try {
           String insertSql = "insert into measurementsite_weatherstation_link values(" + msid + ", " + wsid + ");";
           LOGGER.finest(insertSql);
-          int rowsAdded = st.executeUpdate(insertSql);
+          int rowsAdded = st2.executeUpdate(insertSql);
           LOGGER.finest("Rows added: " + rowsAdded);
           nrOfRowsAdded += rowsAdded;
         } catch (SQLException ex) {
