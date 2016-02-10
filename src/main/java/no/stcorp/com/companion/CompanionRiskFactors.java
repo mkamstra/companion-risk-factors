@@ -3,6 +3,7 @@ package no.stcorp.com.companion;
 import no.stcorp.com.companion.aggregate.*;
 import no.stcorp.com.companion.database.*;
 import no.stcorp.com.companion.kml.*;
+import no.stcorp.com.companion.ml.*;
 import no.stcorp.com.companion.spark.*;
 import no.stcorp.com.companion.traffic.*;
 import no.stcorp.com.companion.weather.*;
@@ -116,7 +117,6 @@ public class CompanionRiskFactors {
        * you. Instead use something like the following to set the driver memory for local mode:
        * /home/osboxes/Tools/spark-1.5.1/bin/spark-submit --driver-memory 2g --class "CompanionRiskFactors" --master local[*] target/CompanionWeatherTraffic-0.1.jar
        */
-    JavaSparkContext sc = new JavaSparkContext(conf); // JavaSparkContext object tells Spark how to access a cluster
     String ftpUrl = "ftp://83.247.110.3/"; // Old URL valid until 2016/01/15
     ftpUrl = "ftp://opendata.ndw.nu/"; // New URL valid from 2016/01/01 (15 days overlap)
     ftpUrl = "ftp://companion:1d1ada@192.168.1.33/Projects/companion/downloadedData/NDW/"; // Data downloaded locally due to awkard interface for downloading historical data on NDW
@@ -129,6 +129,7 @@ public class CompanionRiskFactors {
     options.addOption("link", false, "Link measurement sites with weather observations");
     options.addOption("plot", false, "Plot generated data for measurement sites with traffic and weather data");
     options.addOption("kml", false, "Generate KML files for the weather stations and measurement sites");
+    options.addOption("ml", false, "Run Machine Learning algorithm");
     //options.addOption("proc", false, "Run a processing sequence: fetch weather and traffic data ...");
     //@SuppressWarnings("deprecation") // For more information on this issue see: https://github.com/HariSekhon/spark-apps/blob/master/build.sbt
     @SuppressWarnings({"deprecation", "static-method"}) 
@@ -166,19 +167,23 @@ public class CompanionRiskFactors {
       System.out.println("Start date KNMI: " + startDateStringKNMI + " - end date KNMI: " + endDateStringKNMI + " (hard coded)");
 
       if (cmd.hasOption("se")) {
-        SparkExamplesRunner ser = new SparkExamplesRunner(sc);
-        ser.run();
+        SparkExamplesRunner ser = new SparkExamplesRunner(conf);
+        //ser.run();
+        ser.runSvm();
       } else if (cmd.hasOption("tcm")) {
         // TODO: Add arguments
+        JavaSparkContext sc = new JavaSparkContext(conf);
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
         startDateString = "2016012901";
         startDate = formatter.parse(startDateString, ZonedDateTime::from).toInstant();
         trn.runCurrentMeasurements(ftpUrl, startDate);
       } else if (cmd.hasOption("ts")) {
+        JavaSparkContext sc = new JavaSparkContext(conf);
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
         Map<String, List<SiteMeasurement>> speedMeasurements = trn.runTrafficNDWSpeed(ftpUrl, ndwIdPattern, startDate, endDate);
         trn.printSiteMeasurementsPerSite(speedMeasurements);
       } else if (cmd.hasOption("wo")) {
+        JavaSparkContext sc = new JavaSparkContext(conf);
         WeatherRetrieverKNMI wrk = new WeatherRetrieverKNMI(sc);
         wrk.run(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
       } else if (cmd.hasOption("plot")) {
@@ -278,6 +283,9 @@ public class CompanionRiskFactors {
         kmlGenerator.generateKmlForMeasurementSites(msAreaList);
         List<MeasurementSite> msPatternMatchingList = dbMgr.getMeasurementPointsForNdwidPattern(ndwIdPattern);
         kmlGenerator.generateKmlForMeasurementSites(msPatternMatchingList);
+      } else if (cmd.hasOption("ml")) {
+        SparkMnist ml= new SparkMnist(conf);
+        ml.runSVM();
       } else if (cmd.hasOption("proc")) {
         String[] arguments = cmd.getOptionValues("proc");
         List<Instant> returnDates = parseProcessingArguments(arguments, startDate, endDate, options);
@@ -289,6 +297,8 @@ public class CompanionRiskFactors {
         startDateStringKNMI = formatterWeatherKNMI.format(startDate);
         endDateStringKNMI = formatterWeatherKNMI.format(endDate);
         System.out.println("Start date KNMI: " + startDateStringKNMI + " - end date KNMI: " + endDateStringKNMI + " (from command line)");
+
+        JavaSparkContext sc = new JavaSparkContext(conf);
         
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
         // trn.runCurrentMeasurements(ftpUrl);

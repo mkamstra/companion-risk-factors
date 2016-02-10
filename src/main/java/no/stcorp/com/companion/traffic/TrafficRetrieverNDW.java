@@ -6,6 +6,7 @@ import no.stcorp.com.companion.xml.*;
 
 import org.apache.commons.net.ftp.*;
 
+import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.*;
 import org.apache.spark.SparkFiles;
 
@@ -28,7 +29,7 @@ public class TrafficRetrieverNDW implements Serializable {
 	
   /**
    * Constructor
-   * @param pSparkContext The Spark context needed for example to download files from the KNMI website
+   * @param pSparkContext The Spark context needed for example to download files from the NDW website
    */
 	public TrafficRetrieverNDW(JavaSparkContext pSparkContext) {
 		mSparkContext = pSparkContext;
@@ -226,6 +227,7 @@ public class TrafficRetrieverNDW implements Serializable {
     //   Thread.currentThread().interrupt();
     // }
 
+    Utils.printFileDetailsForFolder(Paths.get("/tmp"));
     for (String trafficFileName : relevantFiles) {
       try {
         //String trafficFileName = "trafficspeed_2016_01_08_16_32_38_230.xml.gz";
@@ -235,8 +237,6 @@ public class TrafficRetrieverNDW implements Serializable {
         String fileNameWithoutDay = Paths.get(trafficFileName).getFileName().toString();
         String trafficFilePath = SparkFiles.get(fileNameWithoutDay);
         System.out.println("Traffic file path: " + trafficFilePath);
-
-        Utils.printFileDetailsForFolder(Paths.get("/tmp"));
 
         JavaRDD<String> gzData = mSparkContext.textFile(trafficFilePath).cache(); // textFile should decompress gzip automatically
         //System.out.println("Output: ");
@@ -267,7 +267,10 @@ public class TrafficRetrieverNDW implements Serializable {
             // Filter based on ndw id and then collect into a list
             List<SiteMeasurement> measurementsForSite = measurementsDistributed.filter(ms -> ms.getMeasurementSiteReference().equalsIgnoreCase(ndwId)).collect();
             if (measurementsPerSite.containsKey(ndwId)) {
-              List<SiteMeasurement> existingMeasurements = measurementsPerSite.get(ndwId);
+              // measurementsForSite has been created in such a way that it is not modifyable (like with Arrays.asList()). Therefore
+              // first initialize list and then add elements.
+              List<SiteMeasurement> existingMeasurements = new ArrayList<SiteMeasurement>();
+              existingMeasurements.addAll(measurementsPerSite.get(ndwId));
               existingMeasurements.addAll(measurementsForSite);
               measurementsPerSite.put(ndwId, existingMeasurements);
             } else {

@@ -12,6 +12,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
 
+import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.*;
 import org.apache.spark.api.java.function.Function;
 
@@ -38,7 +39,7 @@ public class WeatherRetrieverKNMI implements Serializable {
    * @param pSparkContext The Spark context needed for example to download files from the KNMI website
    */
 	public WeatherRetrieverKNMI(JavaSparkContext pSparkContext) {
-		mSparkContext = pSparkContext;
+    mSparkContext = pSparkContext;
 	}
 
 	/**

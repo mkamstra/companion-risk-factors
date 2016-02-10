@@ -20,6 +20,7 @@ public class Utils {
             System.out.println(filePath + " (" + Files.size(filePath) + ")");
           } catch (AccessDeniedException e) {
             System.out.println("Problem accessing file " + filePath);
+            e.printStackTrace();
           } catch (IOException e) {
             e.printStackTrace();
           } catch (Exception e) {
