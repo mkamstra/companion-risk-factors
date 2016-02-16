@@ -13,15 +13,15 @@ import java.util.Map.*;
 public class CompanionPlotter {
 
 	public void plot() {
-    try {
-      TimeSeriesFileSelector tsf = new TimeSeriesFileSelector();
-      File[] selectedFiles = tsf.selectFiles();
-      Map<String, TimeSeriesDataContainer> tdcPerNdw = new HashMap<String, TimeSeriesDataContainer>();
-      Map<String, Instant> startTimePerNdw = new HashMap<String, Instant>();
-      Map<String, Instant> endTimePerNdw = new HashMap<String, Instant>();
-      TimeSeriesDataContainer.SeriesType seriesType = null;
-      DateTimeFormatter fileNameFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH").withZone(ZoneId.systemDefault());
-      for (File file : selectedFiles) {
+    TimeSeriesFileSelector tsf = new TimeSeriesFileSelector();
+    File[] selectedFiles = tsf.selectFiles();
+    Map<String, TimeSeriesDataContainer> tdcPerNdw = new HashMap<String, TimeSeriesDataContainer>();
+    Map<String, Instant> startTimePerNdw = new HashMap<String, Instant>();
+    Map<String, Instant> endTimePerNdw = new HashMap<String, Instant>();
+    TimeSeriesDataContainer.SeriesType seriesType = null;
+    DateTimeFormatter fileNameFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH").withZone(ZoneId.systemDefault());
+    for (File file : selectedFiles) {
+    	try {
         String fileName = file.getName();
         if (fileName.toLowerCase().startsWith("trafficspeed")) {
           seriesType = TimeSeriesDataContainer.SeriesType.TRAFFICSPEED;
@@ -78,19 +78,24 @@ public class CompanionPlotter {
         }
 
         tdc.importDataSeries(seriesType, file.getPath());
-      }
+	    } catch (Exception ex) {
+	      System.out.println("Something went wrong reading plotting data from the selected files: " + ex.getMessage());
+	      ex.printStackTrace();
+	    }
+    }
 
-      for (Entry<String, TimeSeriesDataContainer> ndwTdcEntry : tdcPerNdw.entrySet()) {
+    for (Entry<String, TimeSeriesDataContainer> ndwTdcEntry : tdcPerNdw.entrySet()) {
+    	try {
         String ndwId = ndwTdcEntry.getKey();
         TimeSeriesDataContainer tdc = ndwTdcEntry.getValue();
         Instant startTime = startTimePerNdw.get(ndwId);
         Instant endTime = endTimePerNdw.get(ndwId);
         TimeSeriesPlotter tsp = new TimeSeriesPlotter("Weather and traffic at measurement site " + ndwId);
         tsp.plot(ndwId, fileNameFormatter.format(startTime), fileNameFormatter.format(endTime), tdc);
-      }
-    } catch (Exception ex) {
-      System.out.println("Something went wrong with plotting the selected files: " + ex.getMessage());
-      ex.printStackTrace();
+	    } catch (Exception ex) {
+	      System.out.println("Something went wrong with plotting the selected files: " + ex.getMessage());
+	      ex.printStackTrace();
+	    }
     }
 	}
 	
