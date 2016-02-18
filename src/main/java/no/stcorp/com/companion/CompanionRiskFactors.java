@@ -188,8 +188,10 @@ public class CompanionRiskFactors {
         List<MeasurementSite> msPatternMatchingList = dbMgr.getMeasurementPointsForNdwidPattern(ndwIdPattern);
         kmlGenerator.generateKmlForMeasurementSites(msPatternMatchingList);
       } else if (cmd.hasOption("ml")) {
-        SparkMnist ml= new SparkMnist(conf);
-        ml.runSVM();
+        // SparkMnist ml= new SparkMnist(conf);
+        // ml.runSVM();
+        DeepLearningTest ml = new DeepLearningTest(conf);
+        ml.run();
       } else if (cmd.hasOption("proc")) {
         String[] arguments = cmd.getOptionValues("proc");
         List<Instant> returnDates = parseProcessingArguments(arguments, startDate, endDate, options);
