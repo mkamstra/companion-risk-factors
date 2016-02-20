@@ -1,10 +1,13 @@
 package no.stcorp.com.companion.ml;
 
 import org.deeplearning4j.datasets.iterator.DataSetIterator;
+
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.dataset.api.DataSetPreProcessor;
 import org.nd4j.linalg.factory.Nd4j;
+
+import org.apache.spark.api.java.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,19 +34,19 @@ import java.util.Random;
 public class CharacterIterator implements DataSetIterator {
 	private static final long serialVersionUID = -7287833919126626356L;
 	private static final int MAX_SCAN_LENGTH = 200; 
-	private char[] validCharacters;
-	private Map<Character,Integer> charToIdxMap;
-	private char[] fileCharacters;
-	private int exampleLength;
-	private int miniBatchSize;
-	private int numExamplesToFetch;
-	private int examplesSoFar = 0;
+	private char[] mValidCharacters;
+	private Map<Character,Integer> mCharToIdxMap;
+	private char[] mFileCharacters;
+	private int mExampleLength;
+	private int mMiniBatchSize;
+	private int mNumExamplesToFetch;
+	private int mExamplesSoFar = 0;
 	private Random rng;
-	private final int numCharacters;
-	private final boolean alwaysStartAtNewLine;
+	private final int mNumCharacters;
+	private final boolean mAlwaysStartAtNewLine;
 	
-	public CharacterIterator(String path, int miniBatchSize, int exampleSize, int numExamplesToFetch ) throws IOException {
-		this(path,Charset.defaultCharset(),miniBatchSize,exampleSize,numExamplesToFetch,getDefaultCharacterSet(), new Random(),true);
+	public CharacterIterator(JavaSparkContext pSparkContext, String path, int miniBatchSize, int exampleSize, int numExamplesToFetch ) throws IOException {
+		this(pSparkContext, path, Charset.defaultCharset(), miniBatchSize, exampleSize, numExamplesToFetch, getDefaultCharacterSet(), new Random(), true);
 	}
 	
 	/**
@@ -58,49 +61,55 @@ public class CharacterIterator implements DataSetIterator {
 	 *  of no new line characters, to avoid scanning entire file)
 	 * @throws IOException If text file cannot  be loaded
 	 */
-	public CharacterIterator(String textFilePath, Charset textFileEncoding, int miniBatchSize, int exampleLength,
+	public CharacterIterator(JavaSparkContext pSparkContext, String textFilePath, Charset textFileEncoding, int miniBatchSize, int exampleLength,
 			int numExamplesToFetch, char[] validCharacters, Random rng, boolean alwaysStartAtNewLine ) throws IOException {
 		if( !new File(textFilePath).exists()) throw new IOException("Could not access file (does not exist): " + textFilePath);
 		if(numExamplesToFetch % miniBatchSize != 0 ) throw new IllegalArgumentException("numExamplesToFetch must be a multiple of miniBatchSize");
 		if( miniBatchSize <= 0 ) throw new IllegalArgumentException("Invalid miniBatchSize (must be >0)");
-		this.validCharacters = validCharacters;
-		this.exampleLength = exampleLength;
-		this.miniBatchSize = miniBatchSize;
-		this.numExamplesToFetch = numExamplesToFetch;
+		this.mValidCharacters = validCharacters;
+		this.mExampleLength = exampleLength;
+		this.mMiniBatchSize = miniBatchSize;
+		this.mNumExamplesToFetch = numExamplesToFetch;
 		this.rng = rng;
-		this.alwaysStartAtNewLine = alwaysStartAtNewLine;
+		this.mAlwaysStartAtNewLine = alwaysStartAtNewLine;
 		
-		//Store valid characters is a map for later use in vectorization
-		charToIdxMap = new HashMap<>();
-		for( int i=0; i<validCharacters.length; i++ ) charToIdxMap.put(validCharacters[i], i);
-		numCharacters = validCharacters.length;
+		// Store valid characters in a map for later use in vectorization
+		mCharToIdxMap = new HashMap<>();
+		for( int i=0; i<validCharacters.length; i++ ) 
+			mCharToIdxMap.put(validCharacters[i], i);
+
+		mNumCharacters = mValidCharacters.length;
 		
 		//Load file and convert contents to a char[] 
-		boolean newLineValid = charToIdxMap.containsKey('\n');
-		List<String> lines = Files.readAllLines(new File(textFilePath).toPath(),textFileEncoding);
-		int maxSize = lines.size();	//add lines.size() to account for newline characters at end of each line 
-		for( String s : lines ) maxSize += s.length();
+		boolean newLineValid = mCharToIdxMap.containsKey('\n');
+    JavaRDD<String> linesRDD = pSparkContext.textFile(textFilePath).cache(); // textFile should decompress gzip automatically
+    List<String> lines = linesRDD.collect(); 
+		// List<String> lines = Files.readAllLines(new File(textFilePath).toPath(),textFileEncoding);
+		int maxSize = lines.size();	//add lines.size() to account for newline characters at end of each line which are also stored
+		for( String s : lines ) 
+			maxSize += s.length();
+
 		char[] characters = new char[maxSize];
 		int currIdx = 0;
-		for( String s : lines ){
+		for (String s : lines) {
 			char[] thisLine = s.toCharArray();
 			for (char aThisLine : thisLine) {
-				if (!charToIdxMap.containsKey(aThisLine)) continue;
+				if (!mCharToIdxMap.containsKey(aThisLine)) continue; // Check if charater is allowed. If not, ignore character
 				characters[currIdx++] = aThisLine;
 			}
-			if(newLineValid) characters[currIdx++] = '\n';
+			if (newLineValid) characters[currIdx++] = '\n'; // Newline is also stored in character array
 		}
 		
 		if( currIdx == characters.length ){
-			fileCharacters = characters;
+			mFileCharacters = characters;
 		} else {
-			fileCharacters = Arrays.copyOfRange(characters, 0, currIdx);
+			mFileCharacters = Arrays.copyOfRange(characters, 0, currIdx);
 		}
-		if( exampleLength >= fileCharacters.length ) throw new IllegalArgumentException("exampleLength="+exampleLength
-				+" cannot exceed number of valid characters in file ("+fileCharacters.length+")");
+		if( mExampleLength >= mFileCharacters.length ) throw new IllegalArgumentException("exampleLength=" + exampleLength
+				+ " cannot exceed number of valid characters in file (" + mFileCharacters.length +")");
 		
-		int nRemoved = maxSize - fileCharacters.length;
-		System.out.println("Loaded and converted file: " + fileCharacters.length + " valid characters of "
+		int nRemoved = maxSize - mFileCharacters.length;
+		System.out.println("Loaded and converted file: " + mFileCharacters.length + " valid characters of "
 		+ maxSize + " total characters (" + nRemoved + " removed)");
 	}
 	
@@ -132,86 +141,86 @@ public class CharacterIterator implements DataSetIterator {
 	}
 	
 	public char convertIndexToCharacter( int idx ){
-		return validCharacters[idx];
+		return mValidCharacters[idx];
 	}
 	
 	public int convertCharacterToIndex( char c ){
-		return charToIdxMap.get(c);
+		return mCharToIdxMap.get(c);
 	}
 	
 	public char getRandomCharacter(){
-		return validCharacters[(int) (rng.nextDouble()*validCharacters.length)];
+		return mValidCharacters[(int) (rng.nextDouble()*mValidCharacters.length)];
 	}
 
 	public boolean hasNext() {
-		return examplesSoFar + miniBatchSize <= numExamplesToFetch;
+		return mExamplesSoFar + mMiniBatchSize <= mNumExamplesToFetch;
 	}
 
 	public DataSet next() {
-		return next(miniBatchSize);
+		return next(mMiniBatchSize);
 	}
 
 	public DataSet next(int num) {
-		if( examplesSoFar+num > numExamplesToFetch ) throw new NoSuchElementException();
+		if( mExamplesSoFar + num > mNumExamplesToFetch ) throw new NoSuchElementException();
 		//Allocate space:
-		INDArray input = Nd4j.zeros(num,numCharacters,exampleLength);
-		INDArray labels = Nd4j.zeros(num,numCharacters,exampleLength);
+		INDArray input = Nd4j.zeros(num, mNumCharacters, mExampleLength);
+		INDArray labels = Nd4j.zeros(num, mNumCharacters, mExampleLength);
 		
-		int maxStartIdx = fileCharacters.length - exampleLength;
+		int maxStartIdx = mFileCharacters.length - mExampleLength;
 		
 		//Randomly select a subset of the file. No attempt is made to avoid overlapping subsets
 		// of the file in the same minibatch
 		for( int i=0; i<num; i++ ){
-			int startIdx = (int) (rng.nextDouble()*maxStartIdx);
-			int endIdx = startIdx + exampleLength;
+			int startIdx = (int) (rng.nextDouble() * maxStartIdx);
+			int endIdx = startIdx + mExampleLength;
 			int scanLength = 0;
-			if(alwaysStartAtNewLine){
-				while(startIdx >= 1 && fileCharacters[startIdx-1] != '\n' && scanLength++ < MAX_SCAN_LENGTH ){
+			if (mAlwaysStartAtNewLine){
+				while (startIdx >= 1 && mFileCharacters[startIdx-1] != '\n' && scanLength++ < MAX_SCAN_LENGTH ) {
 					startIdx--;
 					endIdx--;
 				}
 			}
 			
-			int currCharIdx = charToIdxMap.get(fileCharacters[startIdx]);	//Current input
+			int currCharIdx = mCharToIdxMap.get(mFileCharacters[startIdx]);	//Current input
 			int c=0;
 			for( int j=startIdx+1; j<=endIdx; j++, c++ ){
-				int nextCharIdx = charToIdxMap.get(fileCharacters[j]);		//Next character to predict
+				int nextCharIdx = mCharToIdxMap.get(mFileCharacters[j]);		//Next character to predict
 				input.putScalar(new int[]{i,currCharIdx,c}, 1.0);
 				labels.putScalar(new int[]{i,nextCharIdx,c}, 1.0);
 				currCharIdx = nextCharIdx;
 			}
 		}
 		
-		examplesSoFar += num;
+		mExamplesSoFar += num;
 		return new DataSet(input,labels);
 	}
 
 	public int totalExamples() {
-		return numExamplesToFetch;
+		return mNumExamplesToFetch;
 	}
 
 	public int inputColumns() {
-		return numCharacters;
+		return mNumCharacters;
 	}
 
 	public int totalOutcomes() {
-		return numCharacters;
+		return mNumCharacters;
 	}
 
 	public void reset() {
-		examplesSoFar = 0;
+		mExamplesSoFar = 0;
 	}
 
 	public int batch() {
-		return miniBatchSize;
+		return mMiniBatchSize;
 	}
 
 	public int cursor() {
-		return examplesSoFar;
+		return mExamplesSoFar;
 	}
 
 	public int numExamples() {
-		return numExamplesToFetch;
+		return mNumExamplesToFetch;
 	}
 
 	public void setPreProcessor(DataSetPreProcessor preProcessor) {
