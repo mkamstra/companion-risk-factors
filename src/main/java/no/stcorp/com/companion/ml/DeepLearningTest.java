@@ -18,6 +18,7 @@ import org.deeplearning4j.nn.conf.layers.GravesLSTM;
 import org.deeplearning4j.nn.conf.layers.RnnOutputLayer;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
 import org.deeplearning4j.nn.weights.WeightInit;
+import org.deeplearning4j.nn.updater.MultiLayerUpdater;
 import org.deeplearning4j.optimize.listeners.ScoreIterationListener;
 import org.deeplearning4j.spark.impl.multilayer.SparkDl4jMultiLayer;
 
@@ -115,6 +116,7 @@ public class DeepLearningTest implements Serializable {
 		MultiLayerNetwork net = new MultiLayerNetwork(conf);
 		net.init();
 		net.setListeners(new ScoreIterationListener(1));
+		net.setUpdater(new MultiLayerUpdater(net));
 
 		//Print the  number of parameters in the network (and for each layer)
 		Layer[] layers = net.getLayers();
@@ -127,7 +129,7 @@ public class DeepLearningTest implements Serializable {
 		System.out.println("Total number of network parameters: " + totalNumParams);
 		
 		System.out.println("Initializing Spark network");
-    final SparkDl4jMultiLayer master = new SparkDl4jMultiLayer(mSparkContext, conf);
+    final SparkDl4jMultiLayer master = new SparkDl4jMultiLayer(mSparkContext, net);
 		//Do training, and then generate and print samples from network
 		for (int i=0; i<numEpochs; i++) {
 	    List<DataSet> listOfSamples = new ArrayList<DataSet>();
