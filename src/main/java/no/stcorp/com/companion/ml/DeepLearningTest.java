@@ -33,7 +33,7 @@ import java.nio.charset.Charset;
 import java.util.*;
 
 public class DeepLearningTest implements Serializable {
-  private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = UUID.randomUUID().getMostSignificantBits();
 
   private static JavaSparkContext mSparkContext;
   
@@ -137,12 +137,13 @@ public class DeepLearningTest implements Serializable {
 	    	listOfSamples.add(iter.next());
 	    }
 	    JavaRDD<DataSet> data  = mSparkContext.parallelize(listOfSamples, listOfSamples.size());
-	    MultiLayerNetwork trainingNet = master.fitDataSet(data);
+	    //MultiLayerNetwork trainingNet = master.fitDataSet(data); // This is not good as the net gets initialized over and over again
+	    master.fitDataSet(data);
 
 			System.out.println("--------------------");
 			System.out.println("Completed epoch " + i );
 			System.out.println("Sampling characters from network given initialization \"" + ("") + "\"");
-			String[] samples = sampleCharactersFromNetwork(generationInitialization, trainingNet, iter, rng, nCharactersToSample, nSamplesToGenerate);
+			String[] samples = sampleCharactersFromNetwork(generationInitialization, net, iter, rng, nCharactersToSample, nSamplesToGenerate); // Can still use net as master is created from ao net
 			for (int j=0; j<samples.length; j++) {
 				System.out.println("----- Sample " + j + " -----");
 				System.out.println(samples[j]);

@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
+import java.util.UUID;
 
 /** 
  * A very simple DataSetIterator for use in the GravesLSTMCharModellingExample.
@@ -32,7 +33,7 @@ import java.util.Random;
  * @author Alex Black
  */
 public class CharacterIterator implements DataSetIterator {
-	private static final long serialVersionUID = -7287833919126626356L;
+	private static final long serialVersionUID = UUID.randomUUID().getMostSignificantBits();;
 	private static final int MAX_SCAN_LENGTH = 200; 
 	private char[] mValidCharacters;
 	private Map<Character,Integer> mCharToIdxMap;
@@ -161,7 +162,7 @@ public class CharacterIterator implements DataSetIterator {
 	}
 
 	public DataSet next(int num) {
-		if( mExamplesSoFar + num > mNumExamplesToFetch ) throw new NoSuchElementException();
+		if (mExamplesSoFar + num > mNumExamplesToFetch) throw new NoSuchElementException();
 		//Allocate space:
 		INDArray input = Nd4j.zeros(num, mNumCharacters, mExampleLength);
 		INDArray labels = Nd4j.zeros(num, mNumCharacters, mExampleLength);
