@@ -1,5 +1,7 @@
 package no.stcorp.com.companion.ml;
 
+import no.stcorp.com.companion.visualization.*;
+
 import org.deeplearning4j.datasets.iterator.DataSetFetcher;
 
 import org.nd4j.linalg.api.ndarray.INDArray;
@@ -8,7 +10,10 @@ import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.util.FeatureUtil;
 import org.nd4j.linalg.util.ArrayUtil;
 
+import org.jfree.data.time.*;
+
 import java.util.*;
+import java.util.Map.*;
 
 /**
  * A class for creation of matrices for the RNN
@@ -33,7 +38,26 @@ public class WeatherTrafficDatasetFetcher implements DataSetFetcher {
    * Obtain the relevant data files
    */
   private void obtainDataFiles() {
-  	// TODO: Implement: obtain relevant files and get relevant information from them
+  	TimeSeriesDataImporter importer = new TimeSeriesDataImporter();
+  	Map<String, TimeSeriesDataContainer> tdcPerNdw = importer.importTimeSeriesDataFromFiles();
+  	// Convert map to initial data set
+  	for (Entry<String, TimeSeriesDataContainer> tdcForOneLocation : tdcPerNdw.entrySet()) {
+  		String ndwId = tdcForOneLocation.getKey();
+  		TimeSeriesDataContainer tsContainer = tdcForOneLocation.getValue();
+	  	TimeSeries tsSeries = tsContainer.getTrafficspeedSeries();
+  		Collection<RegularTimePeriod> tsTimePeriods = tsSeries.getTimePeriods();
+  		List<TimeSeriesDataItem> tsItems = tsSeries.getItems();
+	  	TimeSeries tempSeries = tsContainer.getTemperatureSeries();
+  		Collection<RegularTimePeriod> tempTimePeriods = tempSeries.getTimePeriods();
+  		List<TimeSeriesDataItem> tempItems = tempSeries.getItems();
+	  	TimeSeries prSeries = tsContainer.getPrecipitationSeries();
+  		Collection<RegularTimePeriod> prTimePeriods = prSeries.getTimePeriods();
+  		List<TimeSeriesDataItem> prItems = prSeries.getItems();
+	  	TimeSeries wsSeries = tsContainer.getWindspeedSeries();
+  		Collection<RegularTimePeriod> wsTimePeriods = wsSeries.getTimePeriods();
+  		List<TimeSeriesDataItem> wsItems = wsSeries.getItems();
+  		
+  	}
   	mInitialDataSet = null;
   }
 

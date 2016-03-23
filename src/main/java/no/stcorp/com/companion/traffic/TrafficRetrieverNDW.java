@@ -4,6 +4,7 @@ import no.stcorp.com.companion.database.*;
 import no.stcorp.com.companion.util.*;
 import no.stcorp.com.companion.xml.*;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.net.ftp.*;
 
 import org.apache.spark.SparkConf;
@@ -19,6 +20,7 @@ import java.time.format.*;
 import java.time.temporal.*;
 
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.Map.*;
 import java.util.stream.Collectors;
 
@@ -56,59 +58,83 @@ public class TrafficRetrieverNDW implements Serializable {
     List<String> relevantFiles = new ArrayList<String>();
     String relevantFile = "";
     try {
-      ftpClient.connect("192.168.1.33");
-      ftpClient.enterLocalPassiveMode();
-      ftpClient.login("companion", "1d1ada");
-      System.out.println("Working directory FTP server (1): " + ftpClient.printWorkingDirectory());
-      ftpClient.changeWorkingDirectory("//Projects//companion//downloadedData//NDW//");
-      System.out.println("Working directory FTP server (2): " + ftpClient.printWorkingDirectory());
-      boolean directoryExists = ftpClient.changeWorkingDirectory("//Projects//companion//downloadedData//NDW//" + dayFolderName);
-      System.out.println("Working directory FTP server (3a): " + ftpClient.printWorkingDirectory());
-      // Check if folder exists
-      if (!directoryExists) {
-        System.out.println("Directory //Projects//companion//downloadedData//NDW//" + dayFolderName + " does not exist");
-        // No automatic folder, so return
-        return;
-      }
-      FTPFile[] allFtpFiles = ftpClient.listFiles();
-      ftpClient.logout();
-      System.out.println("Files in folder: " + allFtpFiles.length);
+      boolean useLocalFile = true;
       List<String> allFiles = new ArrayList<String>();
-      for (FTPFile ftpFile : allFtpFiles) {
-        // System.out.println(ftpFile.getName());
-        allFiles.add(ftpFile.getName());
+      if (!useLocalFile) { // temp to be able to read the data
+        ftpClient.connect("192.168.1.33");
+        ftpClient.enterLocalPassiveMode();
+        ftpClient.login("companion", "1d1ada");
+        System.out.println("Working directory FTP server (1): " + ftpClient.printWorkingDirectory());
+        ftpClient.changeWorkingDirectory("//Projects//companion//downloadedData//NDW//");
+        System.out.println("Working directory FTP server (2): " + ftpClient.printWorkingDirectory());
+        boolean directoryExists = ftpClient.changeWorkingDirectory("//Projects//companion//downloadedData//NDW//" + dayFolderName);
+        System.out.println("Working directory FTP server (3a): " + ftpClient.printWorkingDirectory());
+        // Check if folder exists
+        if (!directoryExists) {
+          System.out.println("Directory //Projects//companion//downloadedData//NDW//" + dayFolderName + " does not exist");
+          // No automatic folder, so return
+          return;
+        }
+        FTPFile[] allFtpFiles = ftpClient.listFiles();
+        ftpClient.logout();
+        System.out.println("Files in folder: " + allFtpFiles.length);
+        for (FTPFile ftpFile : allFtpFiles) {
+          // System.out.println(ftpFile.getName());
+          allFiles.add(ftpFile.getName());
+        }
+        System.out.println("Directory exists: " + directoryExists);
+      } else {
+        Path localDir = Paths.get("//usr//local//data//ndw//");
+        System.out.println("Listing files in " + localDir.toString());
+        DirectoryStream<Path> stream = Files.newDirectoryStream(localDir);
+        Iterator<Path> iter = stream.iterator();
+        while (iter.hasNext()) {
+          Path path = iter.next();
+          String fileName = path.toString();
+          System.out.println(fileName);
+          allFiles.add(fileName);
+        }
+
+        //allFiles = Arrays.deepToString(localDir.listFiles((File f) -> (f.getName().endsWith(".xml.gz") && f.getName().startsWith("measurement_current"))));
       }
-      System.out.println("Directory exists: " + directoryExists);
-
-      //  Filter by trafficspeed in name
+      //  Filter by measurement_current in name
       List<String> filesForDay = allFiles.stream().filter(s -> s.contains("measurement_current")).collect(Collectors.toList());
-      // Filter by hour
-      int hour = 8;
-      String hourFilterBaseString = "measurement_current_" + formatterAutomaticDownload.format(pDate) + "_" + String.format("%02d", hour);
-      List<String> filesForHour = filesForDay.stream().filter(s -> s.contains(hourFilterBaseString)).collect(Collectors.toList());
-      System.out.println("Hour: " + hour + ", number of relevant files after filtering on hour: " + filesForHour.size() + " (" + hourFilterBaseString + ")");
-      int minute = 30;
-      final String minuteFilterBaseString = hourFilterBaseString + "_" + String.format("%02d", minute);
-      List<String> filesForMinute = filesForHour.stream().filter(s -> s.contains(minuteFilterBaseString)).collect(Collectors.toList());
-      System.out.println("Hour: " + hour + ", minute: " + minute + ", number of relevant files after filtering on hour and minute: " + filesForMinute.size() + " (" + minuteFilterBaseString + ")");
-      
-      // In case not available for that minute, then change minute until found
-      while (filesForMinute.size() == 0 && minute != 29) {
-        minute += 1;
-        if (minute == 60) 
-          minute = 0;
+      int hour = 0;
+      while (relevantFile.length() == 0 && hour < 24) {
+        // Filter by hour
+        hour++;
+        String hourFilterBaseString = "measurement_current_" + formatterAutomaticDownload.format(pDate) + "_" + String.format("%02d", hour);
+        List<String> filesForHour = filesForDay.stream().filter(s -> s.contains(hourFilterBaseString)).collect(Collectors.toList());
+        System.out.println("Hour: " + hour + ", number of relevant files after filtering on hour: " + filesForHour.size() + " (" + hourFilterBaseString + ")");
+        int minute = 30;
+        final String minuteFilterBaseString = hourFilterBaseString + "_" + String.format("%02d", minute);
+        List<String> filesForMinute = filesForHour.stream().filter(s -> s.contains(minuteFilterBaseString)).collect(Collectors.toList());
+        System.out.println("Hour: " + hour + ", minute: " + minute + ", number of relevant files after filtering on hour and minute: " + filesForMinute.size() + " (" + minuteFilterBaseString + ")");
+        
+        // In case not available for that minute, then change minute until found
+        while (filesForMinute.size() == 0 && minute != 29) {
+          minute += 1;
+          if (minute == 60) 
+            minute = 0;
 
-        final String loopMinuteFilterBaseString = hourFilterBaseString + "_" + String.format("%02d", minute);
-        filesForMinute = filesForHour.stream().filter(s -> s.contains(loopMinuteFilterBaseString)).collect(Collectors.toList());
-        System.out.println("Hour: " + hour + ", minute: " + minute + ", number of relevant files after filtering on hour and minunte: " + filesForMinute.size());
-      } 
-      if (filesForMinute.size() > 0)
-        relevantFile = filesForMinute.get(0);
+          final String loopMinuteFilterBaseString = hourFilterBaseString + "_" + String.format("%02d", minute);
+          filesForMinute = filesForHour.stream().filter(s -> s.contains(loopMinuteFilterBaseString)).collect(Collectors.toList());
+          System.out.println("Hour: " + hour + ", minute: " + minute + ", number of relevant files after filtering on hour and minunte: " + filesForMinute.size());
+        } 
+        if (filesForMinute.size() > 0) {
+          String fileNamePlusPath = filesForMinute.get(0);
+          relevantFile = FilenameUtils.getName(fileNamePlusPath); // Base file name
+          dayFolderName = fileNamePlusPath.substring(0, fileNamePlusPath.length() - relevantFile.length()); // Local folder
+        }
+      }
 
       if (relevantFile.length() == 0)
         return;
 
       String measurementZipUrl = pFtpUrl +  dayFolderName + relevantFile;
+      if (useLocalFile)
+        measurementZipUrl = dayFolderName + relevantFile; // No need to provide ftp as the file is local
+
       System.out.println("Ftp file path for measurement file: " + measurementZipUrl);
       mSparkContext.addFile(measurementZipUrl);
       String measurementFilePath = SparkFiles.get(relevantFile);
@@ -116,6 +142,27 @@ public class TrafficRetrieverNDW implements Serializable {
 
       JavaRDD<String> gzData = mSparkContext.textFile(measurementFilePath).cache(); // textFile should decompress gzip automatically
       //System.out.println("Output: " + gzData.toString());
+
+      // try {
+      //   System.out.println("Putting app to sleep for 10 seconds again");
+      //   Thread.sleep(10000);
+      // } catch (InterruptedException ex) {
+      //   System.out.println("Something went wrong putting the app to sleep for 100 seconds again");
+      //   ex.printStackTrace();
+      //   Thread.currentThread().interrupt();
+      // }
+
+      Path measurementFileAsPath = Paths.get(measurementFilePath);
+      Path localDir = measurementFileAsPath.getParent();
+      System.out.println("Listing files in " + localDir.toString());
+      DirectoryStream<Path> stream = Files.newDirectoryStream(localDir);
+      Iterator<Path> iter = stream.iterator();
+      while (iter.hasNext()) {
+        Path path = iter.next();
+        String fileName = path.toString();
+        System.out.println(fileName);
+      }
+
       /**
        * Another common idiom is attempting to print out the elements of an RDD using rdd.foreach(println) or rdd.map(println). 
        * On a single machine, this will generate the expected output and print all the RDD’s elements. However, in cluster mode, 
@@ -150,6 +197,9 @@ public class TrafficRetrieverNDW implements Serializable {
         }
       } catch (OutOfMemoryError ex) {
         System.out.println("Ran out of memory while parsing and counting the current measurements");
+        ex.printStackTrace();
+      } catch (Exception ex) {
+        System.out.println("Problem reading the current measurements file");
         ex.printStackTrace();
       }
 
@@ -189,6 +239,27 @@ public class TrafficRetrieverNDW implements Serializable {
     }
   }
 
+  /**
+   * This utility simply wraps a functional
+   * interface that throws a checked exception
+   * into a Java 8 Consumer
+   */
+  private static <T> Consumer<T>
+  unchecked(CheckedConsumer<T> consumer) {
+    return t -> {
+      try {
+        consumer.accept(t);
+      }
+      catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    };
+  }
+
+  @FunctionalInterface
+  private interface CheckedConsumer<T> {
+    void accept(T t) throws Exception;
+  }
 
   /**
    * Get the speed traffic data from the NDW site. To avoid processing to much traffic data only the traffic files of every

@@ -155,7 +155,7 @@ public class CompanionRiskFactors {
         // TODO: Add arguments
         JavaSparkContext sc = new JavaSparkContext(conf);
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
-        startDateString = "2016012901";
+        startDateString = "2016031610";
         startDate = formatter.parse(startDateString, ZonedDateTime::from).toInstant();
         trn.runCurrentMeasurements(ftpUrl, startDate);
       } else if (cmd.hasOption("ts")) {
@@ -183,10 +183,12 @@ public class CompanionRiskFactors {
         kmlGenerator.generateKmlForWeatherStations(wsList);
         List<MeasurementSite> msList = dbMgr.getAllMeasurementSites();
         kmlGenerator.generateKmlForMeasurementSites(msList);
-        List<MeasurementSite> msAreaList = dbMgr.getMeasurementSitesWithinArea(51.8f, 4.0f, 52.5f, 5.5f);
+        List<MeasurementSite> msAreaList = dbMgr.getMeasurementSitesWithinArea(52.0f, 4.0f, 52.5f, 5.0f);
         kmlGenerator.generateKmlForMeasurementSites(msAreaList);
         List<MeasurementSite> msPatternMatchingList = dbMgr.getMeasurementPointsForNdwidPattern(ndwIdPattern);
         kmlGenerator.generateKmlForMeasurementSites(msPatternMatchingList);
+        List<MeasurementSiteSegment> msSegmentList = dbMgr.getAllMeasurementSitesWithAtLeastTwoCoordinates();
+        kmlGenerator.generateKmlForMeasurementSitesWithSegments(msSegmentList);
       } else if (cmd.hasOption("ml")) {
         // SparkMnist ml= new SparkMnist(conf);
         // ml.runSVM();

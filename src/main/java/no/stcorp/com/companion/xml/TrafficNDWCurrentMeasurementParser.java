@@ -137,6 +137,9 @@ public class TrafficNDWCurrentMeasurementParser implements Function<String, List
     LOGGER.finest("Measurement site record: " + XmlUtilities.getCharacterDataFromElement(msrElt));
     MeasurementSite ms = new MeasurementSite();
     String ndwId = msrElt.getAttribute("id");
+    if (!ndwId.startsWith("RWS"))
+      return; // Only highways are relevant to us
+    
     ms.setNdwid(ndwId);    
 
     List<Element> msrChildren = XmlUtilities.getChildren(msrElt);
@@ -229,18 +232,9 @@ public class TrafficNDWCurrentMeasurementParser implements Function<String, List
       try {
         float lat = Float.valueOf(latitudeString);
         float lon = Float.valueOf(longitudeString);
-        ms.addCoordinateToLocation1(lat, lon);
-        int tmpCounter = 0;
-        if (Float.isNaN(ms.getLatitude())) {
-          ms.setLatitude(lat);
-          tmpCounter++;
-        }
-        if (Float.isNaN(ms.getLongitude())) {
-          ms.setLongitude(lon);
-          tmpCounter++;
-        }
-        if (tmpCounter == 2) 
-          LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Setting latitude and longitude of measurement site (lat,lon) = (" + lat + ", " + lon + ")");
+        Location loc = new Location(lat, lon, 0.0);
+        if (ms.getLocation() == null) 
+          ms.setLocation(loc);
       } catch (Exception ex) {
         ex.printStackTrace();
         LOGGER.severe("Latitude and longitude not properly formed as numeric values; " + ex.getMessage());
@@ -267,7 +261,7 @@ public class TrafficNDWCurrentMeasurementParser implements Function<String, List
             lengthAffectedString = XmlUtilities.getCharacterDataFromElement(lengthAffected);
             try {
               Integer lengthAffectedValue = Integer.valueOf(lengthAffectedString);
-              ms.setLengthaffected1(lengthAffectedValue);
+              ms.setLengthaffected(lengthAffectedValue);
             } catch (Exception ex) {
               // Ignore
             }
@@ -276,7 +270,7 @@ public class TrafficNDWCurrentMeasurementParser implements Function<String, List
           if (carriageWayList.getLength() > 0) {
             Element carriageWay = (Element) carriageWayList.item(0);
             carriageWayString = XmlUtilities.getCharacterDataFromElement(carriageWay);
-            ms.setCarriageway1(carriageWayString);
+            ms.setCarriageway(carriageWayString);
             carriageWayString = "carriage way : " + XmlUtilities.getCharacterDataFromElement(carriageWay);
           }
           LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;" + carriageWayString + ", " + lengthAffectedString);
@@ -307,7 +301,6 @@ public class TrafficNDWCurrentMeasurementParser implements Function<String, List
   private void fillCoordinatesFromElement(Element linearByCoordinatesExtension, MeasurementSite ms) {
     NodeList startPointList = linearByCoordinatesExtension.getElementsByTagName("linearCoordinatesStartPoint");
     NodeList endPointList = linearByCoordinatesExtension.getElementsByTagName("linearCoordinatesEndPoint");
-    String startCoordinateString = "start coordinate (lat,lon) = (";
     if (startPointList.getLength() > 0) {
       Element startPoint = (Element) startPointList.item(0);
       NodeList startPointCoordinateList = startPoint.getElementsByTagName("pointCoordinates");
@@ -320,22 +313,14 @@ public class TrafficNDWCurrentMeasurementParser implements Function<String, List
           Element longitude = (Element) longitudeList.item(0);
           String latitudeString = XmlUtilities.getCharacterDataFromElement(latitude); 
           String longitudeString = XmlUtilities.getCharacterDataFromElement(longitude);
-          startCoordinateString += latitudeString + ", " + longitudeString;
           try {
             float lat = Float.valueOf(latitudeString);
             float lon = Float.valueOf(longitudeString);
-            int tmpCounter = 0;
-            if (Float.isNaN(ms.getLatitude())) {
-              ms.setLatitude(lat);
-              tmpCounter++;
-            }
-            if (Float.isNaN(ms.getLongitude())) {
-              ms.setLongitude(lon);
-              tmpCounter++;
-            }
-            if (tmpCounter == 2) {
-              LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Setting latitude and longitude of measurement site (lat,lon) = (" + lat + ", " + lon + ")");              
-            }
+            Location loc = new Location(lat, lon, 0.0);
+            if (ms.getLocation() == null) 
+              ms.setLocation(loc);
+
+            ms.addCoordinate(loc);
           } catch (Exception ex) {
             ex.printStackTrace();
             LOGGER.severe("Latitude and longitude not properly formed as numeric values; " + ex.getMessage());
@@ -343,8 +328,6 @@ public class TrafficNDWCurrentMeasurementParser implements Function<String, List
         }
       }
     }
-    startCoordinateString += ")";
-    String endCoordinateString = "end coordinate (lat,lon) = (";
     if (endPointList.getLength() > 0) {
       Element endPoint = (Element) endPointList.item(0);
       NodeList endPointCoordinateList = endPoint.getElementsByTagName("pointCoordinates");
@@ -355,13 +338,23 @@ public class TrafficNDWCurrentMeasurementParser implements Function<String, List
         if (latitudeList.getLength() > 0 && longitudeList.getLength() > 0) {
           Element latitude = (Element) latitudeList.item(0);
           Element longitude = (Element) longitudeList.item(0);
-          endCoordinateString += XmlUtilities.getCharacterDataFromElement(latitude) + ", " + 
-              XmlUtilities.getCharacterDataFromElement(longitude);
+          String latitudeString = XmlUtilities.getCharacterDataFromElement(latitude);
+          String longitudeString = XmlUtilities.getCharacterDataFromElement(longitude);
+          try {
+            float lat = Float.valueOf(latitudeString);
+            float lon = Float.valueOf(longitudeString);
+            Location loc = new Location(lat, lon, 0.0);
+            if (ms.getLocation() == null) 
+              ms.setLocation(loc);
+
+            ms.addCoordinate(loc);
+          } catch (Exception ex) {
+            ex.printStackTrace();
+            LOGGER.severe("Latitude and longitude not properly formed as numeric values; " + ex.getMessage());
+          }
         }
       }
     }
-    endCoordinateString += ")";
-    LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;Coordinates : " + startCoordinateString + ", " + endCoordinateString);
   }
 
   private boolean isContainedInList(List<String> valueList, String searchString) {

@@ -148,9 +148,11 @@ public class DatabaseManager implements Serializable {
 
   private int addMeasurementSiteToDb(MeasurementSite ms) throws RuntimeException {
     int nrOfRowsAdded = 0;
+    String insertSql = null;
     try {
-      if (Float.isNaN(ms.getLatitude()) || Float.isNaN(ms.getLongitude())) {
-        throw new RuntimeException("Problem adding measurement site to the database as the latitude and longitude of the measurement site have not been filled properly; lat = " + ms.getLatitude() + ", lon = " + ms.getLongitude());
+
+      if (ms.getLocation() == null) {
+        throw new RuntimeException("Problem adding measurement site to the database as the latitude and longitude of the measurement site have not been filled properly; lat = " + ms.getLocation().getLatitude() + ", lon = " + ms.getLocation().getLongitude());
       }
 	    getConnection();
 	    String selectSql = "SELECT * FROM measurementsite where ndwid='" + ms.getNdwid() + "'";
@@ -171,24 +173,19 @@ public class DatabaseManager implements Serializable {
 	        maxId = maxDbId + 1;
 	        break;
 	      }
-	      String carriageWay1 = "NULL";
-	      if (ms.getCarriageway1() != null) {
-	        carriageWay1 = "'" + ms.getCarriageway1() + "'";
-	      }
-	      String carriageWay2 = "NULL";
-	      if (ms.getCarriageway2() != null) {
-	        carriageWay2 = "'" + ms.getCarriageway2() + "'";
-	      }
-	      String location2 = "NULL";
-	      if (ms.getLocation2() != null) {
-	        location2 = "'" + ms.getLocation2() + "'";
+	      String carriageWay = "NULL";
+	      if (ms.getCarriageway() != null) {
+	        carriageWay = "'" + ms.getCarriageway() + "'";
 	      }
 	      String ndwId = ms.getNdwid();
 	      ndwId = ndwId.replaceAll("'", "_");
 	      String name = ms.getName();
 	      name = name.replaceAll("'", "_");
-	      String insertSql = "INSERT INTO measurementsite VALUES(" + maxId +  ", '" + ndwId + "', '" + name + "', " + ms.getNdwtype() + ", ST_GeomFromText('POINT(" + ms.getLatitude() + " " + ms.getLongitude() + ")', 4326), '" + ms.getLocation1() + "', " + 
-	        carriageWay1 + ", " + ms.getLengthaffected1() + ", "  + location2 + ", " + carriageWay2 + ", " + ms.getLengthaffected2() + ")";
+        String polygonString = "";
+        if (ms.getCoordinates().size() > 1)
+          polygonString = ", ST_GeomFromText('LINESTRING(" + ms.getCoordinatesForPostGis() + ")', 4326)";
+	      insertSql = "INSERT INTO measurementsite VALUES(" + maxId +  ", '" + ndwId + "', '" + name + "', " + ms.getNdwtype() + ", ST_GeomFromText('POINT(" + ms.getLocation().getLatLonForPostGis() + ")', 4326), " + 
+	        carriageWay + ", " + ms.getLengthaffected() + polygonString + ")";
 	      LOGGER.finest(insertSql);
 	      int rowsAdded = st.executeUpdate(insertSql);
 	      LOGGER.finest("Rows added: " + rowsAdded);
@@ -200,7 +197,7 @@ public class DatabaseManager implements Serializable {
 	    st.close();
   	} catch (SQLException ex) {
   		ex.printStackTrace();
-  		throw new RuntimeException("Problem adding measurement site to the database; " + ex.getMessage());
+  		throw new RuntimeException("Problem adding measurement site to the database; " + ex.getMessage() + "\n SQL: " + insertSql);
     }
     return nrOfRowsAdded;
   }
@@ -374,8 +371,8 @@ public class DatabaseManager implements Serializable {
         MeasurementSite ms = new MeasurementSite();
         ms.setNdwid(ndwid);
         ms.setName(name);
-        ms.setLatitude(lat);
-        ms.setLongitude(lon);
+        Location loc = new Location(lat, lon, 0.0);
+        ms.setLocation(loc);
         msList.add(ms);
       }
       rs.close();
@@ -384,6 +381,52 @@ public class DatabaseManager implements Serializable {
     } catch (SQLException ex) {
       ex.printStackTrace();
       throw new RuntimeException("Problem getting all traffic measurement sites from the database;" + ex.getMessage());
+    }
+    return msList;
+  }
+
+  public List<MeasurementSiteSegment> getAllMeasurementSitesWithAtLeastTwoCoordinates() throws RuntimeException {
+    List<MeasurementSiteSegment> msList = new ArrayList<MeasurementSiteSegment>();
+    try {
+      getConnection();
+      Statement st = mConnection.createStatement();
+      String allMeasurementSitesSql = "SELECT ndwid,name,st_x(location) as lat,st_y(location) as lon, st_astext(coordinates) as coordinates from measurementsite where coordinates is not null;";
+      ResultSet rs = st.executeQuery(allMeasurementSitesSql);
+      while (rs.next()) {
+        String ndwid = rs.getString("ndwid");
+        String name = rs.getString("name");
+        float lat = rs.getFloat("lat");
+        float lon = rs.getFloat("lon");
+        MeasurementSiteSegment ms = new MeasurementSiteSegment();
+        ms.setNdwid(ndwid);
+        ms.setName(name);
+        Location loc = new Location(lat, lon, 0.0);
+        ms.setLocation(loc);
+        String coordinatesString = rs.getString("coordinates"); // Format: LINESTRING(52.1694602966309 5.5661997795105,52.1673316955566 5.56235980987549)
+        if (coordinatesString.length() > 12) {
+          //System.out.println("Coordinates: " + coordinatesString);
+          coordinatesString = coordinatesString.substring(11);
+          coordinatesString = coordinatesString.substring(0, coordinatesString.length() - 1);
+          String[] coordinatesArray = coordinatesString.split(",");
+          for (String coordinate : coordinatesArray) {
+            String[] coordinateElements = coordinate.split(" ");
+            float latitude = Float.valueOf(coordinateElements[0]);
+            float longitude = Float.valueOf(coordinateElements[1]);
+            //System.out.println("    Coordinate: " + latitude + " " + longitude);
+            ms.addCoordinate(latitude, longitude);
+          }
+        }
+        msList.add(ms);
+      }
+      rs.close();
+      st.close();
+      closeConnection();
+    } catch (SQLException ex) {
+      ex.printStackTrace();
+      throw new RuntimeException("Problem getting all traffic measurement sites with at least two coordinates from the database;" + ex.getMessage());
+    } catch (NumberFormatException ex) {
+      ex.printStackTrace();
+      throw new RuntimeException("Problem getting all traffic measurement sites with at least two coordinates from the database; some coordinate is not numerically formatted; " + ex.getMessage());
     }
     return msList;
   }
@@ -405,8 +448,8 @@ public class DatabaseManager implements Serializable {
         MeasurementSite ms = new MeasurementSite();
         ms.setNdwid(ndwid);
         ms.setName(name);
-        ms.setLatitude(lat);
-        ms.setLongitude(lon);
+        Location loc = new Location(lat, lon, 0.0);
+        ms.setLocation(loc);
         msList.add(ms);
       }
       rs.close();
@@ -438,8 +481,8 @@ public class DatabaseManager implements Serializable {
         MeasurementSite ms = new MeasurementSite();
         ms.setNdwid(ndwid);
         ms.setName(name);
-        ms.setLatitude(lat);
-        ms.setLongitude(lon);
+        Location loc = new Location(lat, lon, 0.0);
+        ms.setLocation(loc);
         msList.add(ms);
       }
       rs.close();
