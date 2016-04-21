@@ -172,6 +172,8 @@ public class SparkExamplesRunner implements Serializable {
     // Compute raw scores on the test set.
     JavaRDD<Tuple2<Object, Object>> predictionAndLabels = testLR.map(
       new Function<LabeledPoint, Tuple2<Object, Object>>() {
+        private static final long serialVersionUID = 1298475632L;
+
         public Tuple2<Object, Object> call(LabeledPoint p) {
           Double prediction = modelLR.predict(p.features());
           System.out.println("Real value: " + p.label() + ", predicted: " + prediction);
@@ -201,12 +203,16 @@ public class SparkExamplesRunner implements Serializable {
     JavaRDD<LabeledPoint> testBayes = tmp[1]; // test set
     final NaiveBayesModel modelBayes = NaiveBayes.train(trainingBayes.rdd(), 1.0);
     JavaPairRDD<Double, Double> predictionAndLabel = testBayes.mapToPair(new PairFunction<LabeledPoint, Double, Double>() {
+        private static final long serialVersionUID = 462802098378L;
+
         @Override
         public Tuple2<Double, Double> call(LabeledPoint p) {
           return new Tuple2<Double, Double>(modelBayes.predict(p.features()), p.label());
         }
       });
     double accuracy = predictionAndLabel.filter(new Function<Tuple2<Double, Double>, Boolean>() {
+      private static final long serialVersionUID = 9488747847L;
+    
       @Override
       public Boolean call(Tuple2<Double, Double> pl) {
         System.out.println("Actual: " + pl._1() + ", predicted: " + pl._2());

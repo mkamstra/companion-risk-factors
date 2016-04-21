@@ -3,7 +3,6 @@ package no.stcorp.com.companion;
 import no.stcorp.com.companion.aggregate.*;
 import no.stcorp.com.companion.database.*;
 import no.stcorp.com.companion.kml.*;
-import no.stcorp.com.companion.ml.*;
 import no.stcorp.com.companion.spark.*;
 import no.stcorp.com.companion.traffic.*;
 import no.stcorp.com.companion.weather.*;
@@ -17,6 +16,8 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.SparkFiles;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.FlatMapFunction;
+
+import java.io.*;
 
 import java.time.*;
 import java.time.format.*;
@@ -90,6 +91,21 @@ public class CompanionRiskFactors {
       .set("spark.driver.memory", "3g")
       .set("spark.executor.maxResultSize", "3g")
       .set("spark.files.overwrite", "true"); // This setting to be able to overwrite an existing file on the temp directory as for different days of traffic the file names might be identical 
+
+    Properties companionProperties = new Properties();
+    try {
+      FileInputStream propFile;
+      String propPath = "./companion.properties";
+      propFile = new FileInputStream(propPath);
+      companionProperties.load(propFile);
+      propFile.close();
+    } catch (Exception ex) {
+      System.err.println("Error reading properties file. Make sure the file is called companion.proprties and is in the same folder as the executable jar file.");
+    }
+
+    String ndwDataFtp = companionProperties.getProperty("ndw.ftp");
+    System.out.println("NDW FTP: " + ndwDataFtp);
+
       /**
        * The previous settings do not work when running in local mode:
        * For local mode you only have one executor, and this executor is your driver, so you need to set the driver's 
@@ -110,7 +126,6 @@ public class CompanionRiskFactors {
     options.addOption("link", false, "Link measurement sites with weather observations");
     options.addOption("plot", false, "Plot generated data for measurement sites with traffic and weather data");
     options.addOption("kml", false, "Generate KML files for the weather stations and measurement sites");
-    options.addOption("ml", false, "Run Machine Learning algorithm");
     //options.addOption("proc", false, "Run a processing sequence: fetch weather and traffic data ...");
     //@SuppressWarnings("deprecation") // For more information on this issue see: https://github.com/HariSekhon/spark-apps/blob/master/build.sbt
     @SuppressWarnings({"deprecation", "static-method"}) 
@@ -189,11 +204,6 @@ public class CompanionRiskFactors {
         kmlGenerator.generateKmlForMeasurementSites(msPatternMatchingList);
         List<MeasurementSiteSegment> msSegmentList = dbMgr.getAllMeasurementSitesWithAtLeastTwoCoordinates();
         kmlGenerator.generateKmlForMeasurementSitesWithSegments(msSegmentList);
-      } else if (cmd.hasOption("ml")) {
-        // SparkMnist ml= new SparkMnist(conf);
-        // ml.runSVM();
-        DeepLearningTest ml = new DeepLearningTest(conf);
-        ml.run();
       } else if (cmd.hasOption("proc")) {
         String[] arguments = cmd.getOptionValues("proc");
         List<Instant> returnDates = parseProcessingArguments(arguments, startDate, endDate, options);
