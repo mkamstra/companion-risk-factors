@@ -1,6 +1,5 @@
 package no.stcorp.com.companion.traffic;
 
-import no.stcorp.com.companion.*;
 import no.stcorp.com.companion.database.*;
 import no.stcorp.com.companion.util.*;
 import no.stcorp.com.companion.xml.*;
@@ -46,8 +45,10 @@ public class TrafficRetrieverNDW implements Serializable {
    * @param pFtpUrl The FTP url
    * @param pFtpfolder The FTP folder
    * @param pDate The date to download for 
+   * @param pUseLocalData Flag to indicate if local NDW files are to be used
+   * @param pNdwLocalFolder The local folder containing the NDW files (in case of local mode)
    */
-  public void runCurrentMeasurements(String pFtpUser, String pFtpPassword, String pFtpUrl, String pFtpFolder, Instant pDate) {
+  public void runCurrentMeasurements(String pFtpUser, String pFtpPassword, String pFtpUrl, String pFtpFolder, Instant pDate, boolean pUseLocalData, String pNdwLocalFolder) {
     // Current measurements for getting the measurement sites
     // Download data from NDW
     System.out.println("Trying to download gzip file containing measurements from NDW");
@@ -62,10 +63,8 @@ public class TrafficRetrieverNDW implements Serializable {
     List<String> relevantFiles = new ArrayList<String>();
     String relevantFile = "";
     try {
-      boolean useLocalFile = true;
       List<String> allFiles = new ArrayList<String>();
-      if (!useLocalFile) { // temp to be able to read the data
-        CompanionRiskFactors.getProperty("");
+      if (!pUseLocalData) { 
         ftpClient.connect(pFtpUrl);
         ftpClient.enterLocalPassiveMode();
         ftpClient.login(pFtpUser, pFtpPassword);
@@ -89,7 +88,7 @@ public class TrafficRetrieverNDW implements Serializable {
         }
         System.out.println("Directory exists: " + directoryExists);
       } else {
-        Path localDir = Paths.get("//usr//local//data//ndw//");
+        Path localDir = Paths.get(pNdwLocalFolder);
         System.out.println("Listing files in " + localDir.toString());
         DirectoryStream<Path> stream = Files.newDirectoryStream(localDir);
         Iterator<Path> iter = stream.iterator();
@@ -136,8 +135,9 @@ public class TrafficRetrieverNDW implements Serializable {
       if (relevantFile.length() == 0)
         return;
 
-      String measurementZipUrl = pFtpUrl +  dayFolderName + relevantFile;
-      if (useLocalFile)
+      String ftpUrl = "ftp://" + pFtpUser + ":" + pFtpPassword + "@" + pFtpUrl + pFtpFolder;
+      String measurementZipUrl = ftpUrl +  dayFolderName + relevantFile;
+      if (pUseLocalData)
         measurementZipUrl = dayFolderName + relevantFile; // No need to provide ftp as the file is local
 
       System.out.println("Ftp file path for measurement file: " + measurementZipUrl);
@@ -269,13 +269,17 @@ public class TrafficRetrieverNDW implements Serializable {
   /**
    * Get the speed traffic data from the NDW site. To avoid processing to much traffic data only the traffic files of every
    * fifth minute is used
-   * @param pFtpUrl The FTP address to download from 
+   * @param pFtpUser The FTP user name
+   * @param pFtpPassword The FTP password
+   * @param pFtpUrl The FTP url
+   * @param pFtpfolder The FTP folder
    * @param pNdwIdPattern The pattern the NDW id should match
 	 * @param pStartDate Start date in format yyyyMMddHH
 	 * @param pEndDate End date in format yyyyMMddHH
    * @return a map of traffic speed measurements per measurement site
    */
-  public Map<String, List<SiteMeasurement>> runTrafficNDWSpeed(String pFtpUrl, String pNdwIdPattern, Instant pStartDate, Instant pEndDate) {
+  public Map<String, List<SiteMeasurement>> runTrafficNDWSpeed(String pFtpUser, String pFtpPassword, String pFtpUrl, String pFtpFolder, String pNdwIdPattern, 
+    Instant pStartDate, Instant pEndDate) {
     Map<String, List<SiteMeasurement>> measurementsPerSite = new HashMap<String, List<SiteMeasurement>>();
 
     System.out.println("Downloading traffic speed");
@@ -307,7 +311,7 @@ public class TrafficRetrieverNDW implements Serializable {
     for (String trafficFileName : relevantFiles) {
       try {
         //String trafficFileName = "trafficspeed_2016_01_08_16_32_38_230.xml.gz";
-        String trafficZipUrl = pFtpUrl + trafficFileName;
+        String trafficZipUrl = "ftp://" + pFtpUser + ":" + pFtpPassword + "@" + pFtpUrl + pFtpFolder + trafficFileName;
         System.out.println("Traffic zip URL: " + trafficZipUrl);
         mSparkContext.addFile(trafficZipUrl);
         String fileNameWithoutDay = Paths.get(trafficFileName).getFileName().toString();

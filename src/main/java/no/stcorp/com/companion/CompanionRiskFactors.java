@@ -129,9 +129,23 @@ public class CompanionRiskFactors {
     String ftpFolder = getProperty("ndw.ftp.folder").replaceAll("\\/", "//");
     if (!ftpFolder.startsWith("//"))
       ftpFolder = "//" + ftpFolder;
+    
+    if (!ftpFolder.endsWith("//"))
+      ftpFolder = "//" + ftpFolder;
 
     String ftpUrl = "ftp://" + ftpUser + ":" + ftpPassword + "@" + importedFtpUrl + ftpFolder;
     System.out.println("NDW FTP: " + ftpUrl);
+
+    String localNdwFolder = getProperty("ndw.localFolder");
+    boolean useLocalNdwData = true;
+    String useLocalDataString = "";
+    try {
+      useLocalDataString = getProperty("ndw.useLocalData");
+      useLocalNdwData = Boolean.parseBoolean(useLocalDataString);
+    } catch (Exception ex) {
+      System.err.println("Flag ndw.useLocalData set to invalid value " + useLocalDataString + ", therefore used true instead");
+    }
+
 //    String ftpUrl = "ftp://83.247.110.3/"; // Old URL valid until 2016/01/15
 //    ftpUrl = "ftp://opendata.ndw.nu/"; // New URL valid from 2016/01/01 (15 days overlap)
 //    ftpUrl = "ftp://companion:1d1ada@192.168.1.33/Projects/companion/downloadedData/NDW/"; // Data downloaded locally due to awkard interface for downloading historical data on NDW
@@ -190,11 +204,11 @@ public class CompanionRiskFactors {
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
         startDateString = "2016031610";
         startDate = formatter.parse(startDateString, ZonedDateTime::from).toInstant();
-        trn.runCurrentMeasurements(ftpUser, ftpPassword, importedFtpUrl, ftpFolder, startDate);
+        trn.runCurrentMeasurements(ftpUser, ftpPassword, importedFtpUrl, ftpFolder, startDate, useLocalNdwData, localNdwFolder);
       } else if (cmd.hasOption("ts")) {
         JavaSparkContext sc = new JavaSparkContext(conf);
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
-        Map<String, List<SiteMeasurement>> speedMeasurements = trn.runTrafficNDWSpeed(ftpUrl, ndwIdPattern, startDate, endDate);
+        Map<String, List<SiteMeasurement>> speedMeasurements = trn.runTrafficNDWSpeed(ftpUser, ftpPassword, importedFtpUrl, ftpFolder, ndwIdPattern, startDate, endDate);
         trn.printSiteMeasurementsPerSite(speedMeasurements);
       } else if (cmd.hasOption("wo")) {
         JavaSparkContext sc = new JavaSparkContext(conf);
@@ -238,7 +252,7 @@ public class CompanionRiskFactors {
         
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
         // trn.runCurrentMeasurements(ftpUrl);
-        Map<String, List<SiteMeasurement>> currentSpeedMeasurementsForMeasurementsSites = trn.runTrafficNDWSpeed(ftpUrl, ndwIdPattern, startDate, endDate);
+        Map<String, List<SiteMeasurement>> currentSpeedMeasurementsForMeasurementsSites = trn.runTrafficNDWSpeed(ftpUser, ftpPassword, importedFtpUrl, ftpFolder, ndwIdPattern, startDate, endDate);
 
         WeatherRetrieverKNMI wrk = new WeatherRetrieverKNMI(sc);
         Map<String, List<String>> weatherObservationsForMeasurementSites = wrk.run(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
