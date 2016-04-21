@@ -1,5 +1,6 @@
 package no.stcorp.com.companion.traffic;
 
+import no.stcorp.com.companion.*;
 import no.stcorp.com.companion.database.*;
 import no.stcorp.com.companion.util.*;
 import no.stcorp.com.companion.xml.*;
@@ -40,10 +41,13 @@ public class TrafficRetrieverNDW implements Serializable {
   /**
    * Download traffic current measurements from NDW. Is used for checking if the measurement sites are all
    * present in the database. If not they will be added.
-   * @param pFtpUrl The FTP address to download from exluding the folder of the day
+   * @param pFtpUser The FTP user name
+   * @param pFtpPassword The FTP password
+   * @param pFtpUrl The FTP url
+   * @param pFtpfolder The FTP folder
    * @param pDate The date to download for 
    */
-  public void runCurrentMeasurements(String pFtpUrl, Instant pDate) {
+  public void runCurrentMeasurements(String pFtpUser, String pFtpPassword, String pFtpUrl, String pFtpFolder, Instant pDate) {
     // Current measurements for getting the measurement sites
     // Download data from NDW
     System.out.println("Trying to download gzip file containing measurements from NDW");
@@ -61,13 +65,14 @@ public class TrafficRetrieverNDW implements Serializable {
       boolean useLocalFile = true;
       List<String> allFiles = new ArrayList<String>();
       if (!useLocalFile) { // temp to be able to read the data
-        ftpClient.connect("192.168.1.33");
+        CompanionRiskFactors.getProperty("");
+        ftpClient.connect(pFtpUrl);
         ftpClient.enterLocalPassiveMode();
-        ftpClient.login("companion", "1d1ada");
+        ftpClient.login(pFtpUser, pFtpPassword);
         System.out.println("Working directory FTP server (1): " + ftpClient.printWorkingDirectory());
-        ftpClient.changeWorkingDirectory("//Projects//companion//downloadedData//NDW//");
+        ftpClient.changeWorkingDirectory(pFtpFolder);
         System.out.println("Working directory FTP server (2): " + ftpClient.printWorkingDirectory());
-        boolean directoryExists = ftpClient.changeWorkingDirectory("//Projects//companion//downloadedData//NDW//" + dayFolderName);
+        boolean directoryExists = ftpClient.changeWorkingDirectory(pFtpFolder + dayFolderName);
         System.out.println("Working directory FTP server (3a): " + ftpClient.printWorkingDirectory());
         // Check if folder exists
         if (!directoryExists) {

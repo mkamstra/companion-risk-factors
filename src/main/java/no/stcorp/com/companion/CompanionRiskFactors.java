@@ -30,6 +30,8 @@ import java.util.stream.Collectors;
 public class CompanionRiskFactors {
   private static final Pattern SPACE = Pattern.compile(" ");
 
+  private static Properties mCompanionProperties;
+
   public static void printHelp(Options options) {
     HelpFormatter formatter = new HelpFormatter();
     formatter.printHelp("The following flags are available:", options);
@@ -72,6 +74,14 @@ public class CompanionRiskFactors {
     return returnDates;
   }
 
+  public static void setProperties(Properties pProperties) {
+    mCompanionProperties = pProperties;
+  }
+
+  public static String getProperty(String pProperty) {
+    return mCompanionProperties.getProperty(pProperty);
+  }
+
   /**
    * See README.md for an up to date example of how to run this program
    *
@@ -103,20 +113,28 @@ public class CompanionRiskFactors {
       System.err.println("Error reading properties file. Make sure the file is called companion.proprties and is in the same folder as the executable jar file.");
     }
 
-    String ndwDataFtp = companionProperties.getProperty("ndw.ftp");
-    System.out.println("NDW FTP: " + ndwDataFtp);
+    CompanionRiskFactors.setProperties(companionProperties);
 
-      /**
-       * The previous settings do not work when running in local mode:
-       * For local mode you only have one executor, and this executor is your driver, so you need to set the driver's 
-       * memory instead. That said, in local mode, by the time you run spark-submit, a JVM has already been launched 
-       * with the default memory settings, so setting "spark.driver.memory" in your conf won't actually do anything for 
-       * you. Instead use something like the following to set the driver memory for local mode:
-       * /home/osboxes/Tools/spark-1.5.1/bin/spark-submit --driver-memory 2g --class "CompanionRiskFactors" --master local[*] target/CompanionWeatherTraffic-0.1.jar
-       */
-    String ftpUrl = "ftp://83.247.110.3/"; // Old URL valid until 2016/01/15
-    ftpUrl = "ftp://opendata.ndw.nu/"; // New URL valid from 2016/01/01 (15 days overlap)
-    ftpUrl = "ftp://companion:1d1ada@192.168.1.33/Projects/companion/downloadedData/NDW/"; // Data downloaded locally due to awkard interface for downloading historical data on NDW
+    /**
+     * The previous settings do not work when running in local mode:
+     * For local mode you only have one executor, and this executor is your driver, so you need to set the driver's 
+     * memory instead. That said, in local mode, by the time you run spark-submit, a JVM has already been launched 
+     * with the default memory settings, so setting "spark.driver.memory" in your conf won't actually do anything for 
+     * you. Instead use something like the following to set the driver memory for local mode:
+     * /home/osboxes/Tools/spark-1.5.1/bin/spark-submit --driver-memory 2g --class "CompanionRiskFactors" --master local[*] target/CompanionWeatherTraffic-0.1.jar
+     */
+    String ftpUser = getProperty("ndw.ftp.user"); 
+    String ftpPassword = getProperty("ndw.ftp.password"); 
+    String importedFtpUrl = getProperty("ndw.ftp.url"); 
+    String ftpFolder = getProperty("ndw.ftp.folder").replaceAll("\\/", "//");
+    if (!ftpFolder.startsWith("//"))
+      ftpFolder = "//" + ftpFolder;
+
+    String ftpUrl = "ftp://" + ftpUser + ":" + ftpPassword + "@" + importedFtpUrl + ftpFolder;
+    System.out.println("NDW FTP: " + ftpUrl);
+//    String ftpUrl = "ftp://83.247.110.3/"; // Old URL valid until 2016/01/15
+//    ftpUrl = "ftp://opendata.ndw.nu/"; // New URL valid from 2016/01/01 (15 days overlap)
+//    ftpUrl = "ftp://companion:1d1ada@192.168.1.33/Projects/companion/downloadedData/NDW/"; // Data downloaded locally due to awkard interface for downloading historical data on NDW
 
     Options options = new Options();
     options.addOption("se", false, "Run some Spark examples to see if Spark is functioning as expected");
@@ -172,7 +190,7 @@ public class CompanionRiskFactors {
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
         startDateString = "2016031610";
         startDate = formatter.parse(startDateString, ZonedDateTime::from).toInstant();
-        trn.runCurrentMeasurements(ftpUrl, startDate);
+        trn.runCurrentMeasurements(ftpUser, ftpPassword, importedFtpUrl, ftpFolder, startDate);
       } else if (cmd.hasOption("ts")) {
         JavaSparkContext sc = new JavaSparkContext(conf);
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
