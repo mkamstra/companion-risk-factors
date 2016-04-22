@@ -31,7 +31,7 @@ Run the program as follows (from the root of the software, ie. where you find th
 
 
 Note that you can configure the software for your system using the companion.properties file. An example of the contents of this file:
-> `ndw.ftp.user=companion`
+> `ndw.ftp.user=companion`<br>
 > `ndw.ftp.password=******** (hidden for obvious reasons)`
 > `ndw.ftp.url=192.168.1.33`
 > `ndw.ftp.folder=/Projects/companion/downloadedData/NDW/`
