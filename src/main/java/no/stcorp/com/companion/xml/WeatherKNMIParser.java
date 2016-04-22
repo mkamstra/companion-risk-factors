@@ -46,7 +46,7 @@ public class WeatherKNMIParser implements Function<String, String> {
     // Parse the XML formatted string using the DOM parser which is good to have all elements loaded in memory, but is known not to be the fastest parser
     List<String> weatherObservations = new ArrayList<String>();
     try {
-      LOGGER.info("Starting to parse weather observatiton text file from KNMI:");
+      LOGGER.info("Starting to parse weather observation text file from KNMI:");
       LOGGER.info("Length of text file: " + pWeatherObservations.length());
       List<WeatherStation> weatherStations = new ArrayList<WeatherStation>();
       String[] weatherData = pWeatherObservations.split("____");
