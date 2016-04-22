@@ -7,6 +7,7 @@ import no.stcorp.com.companion.weather.*;
 
 import java.io.Serializable;
 import java.io.IOException;
+import java.io.FileInputStream;
 import java.sql.*;
 import java.util.*;
 import java.util.Map.*;
@@ -17,10 +18,24 @@ public class DatabaseManager implements Serializable {
   private static final long serialVersionUID = 1L;
   private static DatabaseManager mInstance = null;
   private static Connection mConnection = null;
+  private static Properties mConnectionProperties;
 
   private DatabaseManager() {
   	// Intentionally private to ensure singleton pattern
     LOGGER.setLevel(Level.FINE);
+
+    Properties props = new Properties();
+    try {
+      FileInputStream propFile;
+      String propPath = "./companion.properties";
+      propFile = new FileInputStream(propPath);
+      props.load(propFile);
+      propFile.close();
+    } catch (Exception ex) {
+      System.err.println("Error reading properties file. Make sure the file is called companion.properties and is in the same folder as the executable jar file.");
+    }
+
+    mConnectionProperties = props;
   }
 
   public static DatabaseManager getInstance() {
@@ -32,12 +47,17 @@ public class DatabaseManager implements Serializable {
 
   private Connection getConnection() throws RuntimeException {
     if (mConnection == null) {
-      setupDatabaseConnection("snt", "snt");
+      String user = mConnectionProperties.getProperty("ndw.db.user");
+      String passwd = mConnectionProperties.getProperty("ndw.db.password");
+      String host = mConnectionProperties.getProperty("ndw.db.host");
+      String port = mConnectionProperties.getProperty("ndw.db.port");
+
+      setupDatabaseConnection(user, passwd, host, port);
     }
     return mConnection;
   }
 
-  private void setupDatabaseConnection(String user, String pw) throws RuntimeException {
+  private void setupDatabaseConnection(String user, String pw, String host, String port) throws RuntimeException {
     try {
       Class.forName("org.postgresql.Driver");
       //String url = "jdbc:postgresql://localhost/companion";
@@ -53,7 +73,7 @@ public class DatabaseManager implements Serializable {
         * http://stackoverflow.com/questions/28840438/how-to-override-sparks-log4j-properties-per-driver for 
         * some more explanation on the topic
         */
-      String url = "jdbc:postgresql://localhost/companion?user=" + user + "&password=" + pw + "&ssl=true&sslfactory=org.postgresql.ssl.NonValidatingFactory";
+      String url = "jdbc:postgresql://" + host + ":" + port + "/companion?user=" + user + "&password=" + pw + "&ssl=true&sslfactory=org.postgresql.ssl.NonValidatingFactory";
       mConnection = DriverManager.getConnection(url);
     } catch (ClassNotFoundException ex) {
       ex.printStackTrace();

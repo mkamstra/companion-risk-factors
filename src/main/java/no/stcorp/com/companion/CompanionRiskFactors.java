@@ -41,7 +41,7 @@ public class CompanionRiskFactors {
    * @param pArguments The arguments provided to the proc run option. Should generally be a start time and an end time in yyyy-MM-dd HH format
    * @param pStartDate Input/output parameter to be set by this method
    * @param pEndDate Input/output parameter to be set by this method
-   * @param The options the program accepts
+   * @param pOptions The options the program accepts
    * @return The parsed start date and end date as Instant objects (first start date followed by end date)
    * Parse the time arguments of the processing run option
    */
@@ -110,7 +110,7 @@ public class CompanionRiskFactors {
       companionProperties.load(propFile);
       propFile.close();
     } catch (Exception ex) {
-      System.err.println("Error reading properties file. Make sure the file is called companion.proprties and is in the same folder as the executable jar file.");
+      System.err.println("Error reading properties file. Make sure the file is called companion.properties and is in the same folder as the executable jar file.");
     }
 
     CompanionRiskFactors.setProperties(companionProperties);
