@@ -73,7 +73,7 @@ public class DatabaseManager implements Serializable {
         * http://stackoverflow.com/questions/28840438/how-to-override-sparks-log4j-properties-per-driver for 
         * some more explanation on the topic
         */
-      String url = "jdbc:postgresql://" + host + ":" + port + "/companion?user=" + user + "&password=" + pw + "&ssl=true&sslfactory=org.postgresql.ssl.NonValidatingFactory";
+      String url = "jdbc:postgresql://" + host + ":" + port + "/companion?user=" + user + "&password=" + pw; // + "&ssl=true&sslfactory=org.postgresql.ssl.NonValidatingFactory";
       mConnection = DriverManager.getConnection(url);
     } catch (ClassNotFoundException ex) {
       ex.printStackTrace();

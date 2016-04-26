@@ -37,3 +37,7 @@ Note that you can configure the software for your system using the companion.pro
 > `ndw.ftp.folder=/Projects/companion/downloadedData/NDW/`<br>
 > `ndw.localFolder=//usr//local//data//ndw//`<br>
 > `ndw.useLocalData=true`<br>
+> `ndw.db.user=snt`<br>
+> `ndw.db.password=*********`<br>
+> `ndw.db.host=192.168.99.100`<br>
+> `ndw.db.port=32768`<br>

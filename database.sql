@@ -13,8 +13,8 @@ SET client_min_messages = warning;
 -- Name: topology; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
-CREATE SCHEMA topology;
-
+CREATE SCHEMA IF NOT EXISTS topology;
+CREATE ROLE snt;
 
 ALTER SCHEMA topology OWNER TO postgres;
 
