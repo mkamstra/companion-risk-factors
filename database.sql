@@ -199,6 +199,10 @@ ALTER TABLE ONLY measurementsite ALTER COLUMN id SET DEFAULT nextval('measuremen
 
 ALTER TABLE ONLY measurementsitetype ALTER COLUMN id SET DEFAULT nextval('measurementsitetype_id_seq'::regclass);
 
+COPY measurementsitetype (id, ndwtype) FROM stdin;
+1   Point
+2   ItineraryByIndexedLocations
+\.
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: snt
