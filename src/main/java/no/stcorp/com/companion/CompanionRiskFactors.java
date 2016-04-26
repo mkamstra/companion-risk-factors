@@ -152,7 +152,7 @@ public class CompanionRiskFactors {
 
     Options options = new Options();
     options.addOption("se", false, "Run some Spark examples to see if Spark is functioning as expected");
-    options.addOption("tcm", false, "Get current traffic measurements from NDW (containing measurement sites)");
+    //options.addOption("tcm", false, "Get current traffic measurements from NDW (containing measurement sites)");
     options.addOption("ts", false, "Get speed measurements from NDW");
     options.addOption("wo", false, "Get weather observations from KNMI");
     options.addOption("link", false, "Link measurement sites with weather observations");
@@ -166,6 +166,12 @@ public class CompanionRiskFactors {
                                      .withValueSeparator(',')
                                      .create("proc");
     options.addOption(procOption);
+    @SuppressWarnings({"deprecation", "static-method"}) 
+    Option tcmOption = OptionBuilder.withDescription("Get NDW traffic measurements to fill the database with the traffic measurement sites. Provide as arguments the start and end date of the traffic file you are looking for in the format YYYYMMDDHH,YYYYMMDDHH")
+                                     .hasArgs(2)
+                                     .withValueSeparator(',')
+                                     .create("tcm");
+    options.addOption(tcmOption);
 
     if (args.length == 0) {
       System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
@@ -199,10 +205,11 @@ public class CompanionRiskFactors {
         //ser.run();
         ser.runSvm();
       } else if (cmd.hasOption("tcm")) {
-        // TODO: Add arguments
+        String[] arguments = cmd.getOptionValues("tcm");
         JavaSparkContext sc = new JavaSparkContext(conf);
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
-        startDateString = "2016031610";
+        //startDateString = "2016031610";
+        startDateString = arguments[0];
         startDate = formatter.parse(startDateString, ZonedDateTime::from).toInstant();
         trn.runCurrentMeasurements(ftpUser, ftpPassword, importedFtpUrl, ftpFolder, startDate, useLocalNdwData, localNdwFolder);
       } else if (cmd.hasOption("ts")) {
