@@ -1,9 +1,14 @@
 package no.stcorp.com.companion.util;
 
+import org.jfree.data.time.*;
+
 import java.io.*;
 
 import java.nio.file.*;
 
+import java.time.Instant;
+
+import java.util.Date;
 import java.util.Scanner;
 
 /**
@@ -46,6 +51,16 @@ public class Utils {
     } catch (Exception ex) {
       // Not important to write anything
     }
+  }
+
+  /**
+   * Convert a JFreeChart RegularTimePeriod (which represents data points in JFreeChart TimeSeries) to 
+   * Java Instant objects (start and end)
+   */
+  public static Pair<Instant, Instant> convertRegularTimePeriodToInstants(RegularTimePeriod rtp) {
+    Date start = rtp.getStart();
+    Date end = rtp.getEnd();
+    return new Pair<Instant, Instant>(start.toInstant(), end.toInstant());
   }
 
 
