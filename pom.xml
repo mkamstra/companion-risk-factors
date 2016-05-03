@@ -80,8 +80,14 @@
     <scala.binary.version>2.10</scala.binary.version>
     <scala.version>2.10.4</scala.version>
     <spark.version>1.6.0</spark.version>
+    <hdf.version>2.6.1</hdf.version>
   </properties>
   <dependencies>
+    <dependency>
+      <groupId>org.hdfgroup</groupId>
+      <artifactId>hdf-java</artifactId>
+      <version>${hdf.version}</version>
+    </dependency>
     <dependency> <!-- Spark dependency -->
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_${scala.binary.version}</artifactId>

@@ -14,6 +14,12 @@ import java.util.Map.*;
  */
 public class TrafficWeatherAggregator {
 
+  public enum ExportFormat {
+    NOEXPORT,
+    BOS,
+    HDF5
+  }
+
   /**
    * @param pCurrentSpeedMeasurementsForMeasurementsSites A map of speed measurements per measurement site (key: NDW id)
    * @param pWeatherObservationsForMeasurementSites A map of weather observations per measurement site (key: NDW id)
@@ -21,8 +27,10 @@ public class TrafficWeatherAggregator {
    * @param pEndDateString End date in format yyyyMMddHH
    * Get the speed measurements and weather observations per measurement site. They are also stored as plot data and eventuall plotted
    */
-  public void getWeatherAndTrafficPerMeasurementSite(Map<String, List<SiteMeasurement>> pCurrentSpeedMeasurementsForMeasurementsSites, 
-    Map<String, List<String>> pWeatherObservationsForMeasurementSites, String pStartDateString, String pEndDateString) {
+
+  public void getWeatherAndTrafficPerMeasurementSite(Map<String, List<SiteMeasurement>> pCurrentSpeedMeasurementsForMeasurementsSites,
+    Map<String, List<String>> pWeatherObservationsForMeasurementSites, String pStartDateString, String pEndDateString,
+                                                     boolean pPlot, ExportFormat pExportFormat) {
     // Loop over the speed measurements per measurement site
     for (Entry<String, List<SiteMeasurement>> speedEntry : pCurrentSpeedMeasurementsForMeasurementsSites.entrySet()) {
       String ndwId = speedEntry.getKey();
@@ -43,9 +51,20 @@ public class TrafficWeatherAggregator {
           storeTrafficAndWeatherDataForOneMeasurementSite(wo, tdc, sms);
         }
         // Finished, so show the plot
-        System.out.println("Plotting due to end of loop");
-        tdc.writeDataToFile(ndwId, pStartDateString, pEndDateString); 
-        tsp.plot(ndwId, pStartDateString, pEndDateString, tdc);
+        if (pPlot) {
+          System.out.println("Plotting due to end of loop");
+          tsp.plot(ndwId, pStartDateString, pEndDateString, tdc);
+        }
+        switch (pExportFormat) {
+          case NOEXPORT:
+            break;
+          case BOS:
+            tdc.writeDataToFile("./", ndwId, pStartDateString, pEndDateString);
+            break;
+          case HDF5:
+            tdc.writeHDF5("./", ndwId, pStartDateString, pEndDateString);
+            break;
+        }
       } else {
         System.err.println("  No weather observations for this measurement site");
       }

@@ -42,7 +42,7 @@ public class TimeSeriesPlotterTest {
     assertEquals(240, tdc.getTemperatureSeries().getItemCount());
     assertEquals(240, tdc.getPrecipitationSeries().getItemCount());
     assertEquals(240, tdc.getWindspeedSeries().getItemCount());
-    tdc.writeDataToFile(ndwId, timeStartString, timeEndString); 
+    tdc.writeDataToFile("./", ndwId, timeStartString, timeEndString);
     TimeSeriesPlotter tsp = new TimeSeriesPlotter("Weather and traffic at measurement site " + ndwId);
     tsp.plot(ndwId, timeStartString, timeEndString, tdc);
   }

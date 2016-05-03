@@ -5,8 +5,13 @@ import java.nio.file.*;
 
 import java.time.*;
 import java.util.Date;
+import java.util.List;
 
+import no.stcorp.com.companion.util.Utils;
 import org.jfree.data.time.*;
+
+import ncsa.hdf.hdf5lib.H5;
+import ncsa.hdf.hdf5lib.HDF5Constants;
 
 /**
  * Class holding the data that for example can be plotted
@@ -56,24 +61,80 @@ public class TimeSeriesDataContainer {
     }
 
 
+	public void writeHDF5(String path, String pNdwId, String pStartDate, String pEndDate) {
+		String fileName = path + "_" + pNdwId + "_" + pStartDate + "_" + pEndDate + ".hdf";
+
+		// TrafficSeries
+		int fileId = -1;
+		int datasetId = -1;
+		int dcplId = -1;
+		int spaceId = -1;
+		int typeId = -1;
+		int[] intdims = {trafficspeedSeries.getItemCount(), 2}; // timeseries are columns
+		long[] longdims = {trafficspeedSeries.getItemCount(), 2};
+
+		// long[] maxdims = {HDF5Constants.H5F_UNLIMITED, 2};
+
+		List<double[]> dataList = Utils.convertTimeSeriesToList(trafficspeedSeries);
+		double[][] data = dataList.toArray(new double[intdims[0]][intdims[1]]);
+
+		try {
+			fileId = H5.H5Fcreate(fileName, HDF5Constants.H5F_ACC_TRUNC, HDF5Constants.H5P_DEFAULT, HDF5Constants.H5P_DEFAULT);
+
+			dcplId = H5.H5Pcreate(HDF5Constants.H5P_DATASET_CREATE);
+
+			spaceId = H5.H5Screate_simple(2, longdims, null);
+
+			typeId = H5.H5Tarray_create(HDF5Constants.H5T_INTEL_F64, 2, intdims, null);
+
+		} catch (Exception e){
+			e.printStackTrace();
+		}
+
+		try {
+
+			if ((fileId >= 0) && (dcplId >= 0)) {
+				datasetId = H5.H5Dcreate(fileId, "trafficspeed", typeId, spaceId, dcplId);
+			}
+
+			if (datasetId >= 0) {
+				H5.H5Dwrite(datasetId, typeId, HDF5Constants.H5S_ALL, HDF5Constants.H5S_ALL, HDF5Constants.H5P_DEFAULT, data);
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				H5.H5Dclose(datasetId);
+				H5.H5Tclose(typeId);
+				H5.H5Sclose(spaceId);
+				H5.H5Pclose(dcplId);
+				H5.H5Fclose(fileId);
+			} catch (Exception f) {
+				f.printStackTrace();
+			}
+		}
+	}
+
     /**
      * Write data to file (byte arrays)
      */
-    public void writeDataToFile(String pNdwId, String pStartDate, String pEndDate) {
-    	writeDataToFile(SeriesType.TRAFFICSPEED, pNdwId, pStartDate, pEndDate);
-    	writeDataToFile(SeriesType.TEMPERATURE, pNdwId, pStartDate, pEndDate);
-    	writeDataToFile(SeriesType.PRECIPITATION, pNdwId, pStartDate, pEndDate);
-    	writeDataToFile(SeriesType.WINDSPEED, pNdwId, pStartDate, pEndDate);
+    public void writeDataToFile(String pPath, String pNdwId, String pStartDate, String pEndDate) {
+		String pFilePath = pPath + "_" + pNdwId + "_" + pStartDate + "_" + pEndDate + ".bos";
+
+		writeDataToFile(SeriesType.TRAFFICSPEED, pFilePath, pStartDate, pEndDate);
+    	writeDataToFile(SeriesType.TEMPERATURE, pFilePath, pStartDate, pEndDate);
+    	writeDataToFile(SeriesType.PRECIPITATION, pFilePath, pStartDate, pEndDate);
+    	writeDataToFile(SeriesType.WINDSPEED, pFilePath, pStartDate, pEndDate);
     }
 
-    private void writeDataToFile(SeriesType pSeriesType, String pNdwId, String pStartDate, String pEndDate) {
+    private void writeDataToFile(SeriesType pSeriesType, String pFilePath, String pStartDate, String pEndDate) {
 		OutputStream fileOutput = null;
 		ByteArrayOutputStream baos = null;
 		ObjectOutput out = null;
     	try {
-    		String fileName = "/tmp/" + pSeriesType + "_" + pNdwId + "_" + pStartDate + "_" + pEndDate + ".bos";
-    		System.out.println("Writing chart data to file: " + fileName);
-    		fileOutput = new FileOutputStream(fileName);
+    		System.out.println("Writing chart data to file: " + pFilePath);
+    		fileOutput = new FileOutputStream(pFilePath);
     		baos = new ByteArrayOutputStream();
     		out = new ObjectOutputStream(baos);
     		switch (pSeriesType) {

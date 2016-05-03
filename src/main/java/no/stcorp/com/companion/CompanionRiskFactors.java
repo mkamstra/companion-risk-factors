@@ -85,7 +85,7 @@ public class CompanionRiskFactors {
   /**
    * See README.md for an up to date example of how to run this program
    *
-   *    or one of the options: -tcm -ts -wo -link -kml -proc -se
+   *    or one of the options: -tcm -ts -wo -link -kml -proc -se -export
    *
    * Note the --jars to indicate the additional jars that need to be loaded 
    * The driver-memory can be set to a larger value than the default 1g to avoid Java heap space problems
@@ -152,13 +152,13 @@ public class CompanionRiskFactors {
 
     Options options = new Options();
     options.addOption("se", false, "Run some Spark examples to see if Spark is functioning as expected");
-    //options.addOption("tcm", false, "Get current traffic measurements from NDW (containing measurement sites)");
+//    options.addOption("tcm", false, "Get current traffic measurements from NDW (containing measurement sites)");
     options.addOption("ts", false, "Get speed measurements from NDW");
     options.addOption("wo", false, "Get weather observations from KNMI");
     options.addOption("link", false, "Link measurement sites with weather observations");
     options.addOption("plot", false, "Plot generated data for measurement sites with traffic and weather data");
     options.addOption("kml", false, "Generate KML files for the weather stations and measurement sites");
-    //options.addOption("proc", false, "Run a processing sequence: fetch weather and traffic data ...");
+//    options.addOption("proc", false, "Run a processing sequence: fetch weather and traffic data ...");
     //@SuppressWarnings("deprecation") // For more information on this issue see: https://github.com/HariSekhon/spark-apps/blob/master/build.sbt
     @SuppressWarnings({"deprecation", "static-method"}) 
     Option procOption = OptionBuilder.withDescription("Run a processing sequence: fetch weather and traffic data ... Provide as arguments start and end date in format: yyyy-MM-dd-HH; separate arguments by comma")
@@ -166,7 +166,13 @@ public class CompanionRiskFactors {
                                      .withValueSeparator(',')
                                      .create("proc");
     options.addOption(procOption);
-    @SuppressWarnings({"deprecation", "static-method"}) 
+
+    Option exportOption = OptionBuilder.withDescription("Run a processing sequence: fetch weather and traffic data and exports to HDF5 file(s) ... Provide as arguments start and end date in format: yyyy-MM-dd-HH; separate arguments by comma")
+            .hasArgs(2)
+            .withValueSeparator(',')
+            .create("export");
+    options.addOption(exportOption);
+    @SuppressWarnings({"deprecation", "static-method"})
     Option tcmOption = OptionBuilder.withDescription("Get NDW traffic measurements to fill the database with the traffic measurement sites. Provide as arguments the start and end date of the traffic file you are looking for in the format YYYYMMDDHH,YYYYMMDDHH")
                                      .hasArgs(2)
                                      .withValueSeparator(',')
@@ -256,7 +262,7 @@ public class CompanionRiskFactors {
         System.out.println("Start date KNMI: " + startDateStringKNMI + " - end date KNMI: " + endDateStringKNMI + " (from command line)");
 
         JavaSparkContext sc = new JavaSparkContext(conf);
-        
+
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
         // trn.runCurrentMeasurements(ftpUrl);
         Map<String, List<SiteMeasurement>> currentSpeedMeasurementsForMeasurementsSites = trn.runTrafficNDWSpeed(ftpUser, ftpPassword, importedFtpUrl, ftpFolder, ndwIdPattern, startDate, endDate);
@@ -265,7 +271,30 @@ public class CompanionRiskFactors {
         Map<String, List<String>> weatherObservationsForMeasurementSites = wrk.run(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
 
         TrafficWeatherAggregator twa = new TrafficWeatherAggregator();
-        twa.getWeatherAndTrafficPerMeasurementSite(currentSpeedMeasurementsForMeasurementsSites, weatherObservationsForMeasurementSites, startDateString, endDateString);
+        twa.getWeatherAndTrafficPerMeasurementSite(currentSpeedMeasurementsForMeasurementsSites, weatherObservationsForMeasurementSites, startDateString, endDateString, true, TrafficWeatherAggregator.ExportFormat.BOS);
+      } else if (cmd.hasOption("export")) {
+        String[] arguments = cmd.getOptionValues("export");
+        List<Instant> returnDates = parseProcessingArguments(arguments, startDate, endDate, options);
+        startDateString = arguments[0];
+        endDateString = arguments[1];
+        System.out.println("Start date: " + startDateString + ", end date: " + endDateString);
+        startDate = returnDates.get(0);
+        endDate = returnDates.get(1);
+        startDateStringKNMI = formatterWeatherKNMI.format(startDate);
+        endDateStringKNMI = formatterWeatherKNMI.format(endDate);
+        System.out.println("Start date KNMI: " + startDateStringKNMI + " - end date KNMI: " + endDateStringKNMI + " (from command line)");
+
+        JavaSparkContext sc = new JavaSparkContext(conf);
+
+        TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
+        // trn.runCurrentMeasurements(ftpUrl);
+        Map<String, List<SiteMeasurement>> currentSpeedMeasurementsForMeasurementsSites = trn.runTrafficNDWSpeed(ftpUser, ftpPassword, importedFtpUrl, ftpFolder, ndwIdPattern, startDate, endDate);
+
+        WeatherRetrieverKNMI wrk = new WeatherRetrieverKNMI(sc);
+        Map<String, List<String>> weatherObservationsForMeasurementSites = wrk.run(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
+
+        TrafficWeatherAggregator twa = new TrafficWeatherAggregator();
+        twa.getWeatherAndTrafficPerMeasurementSite(currentSpeedMeasurementsForMeasurementsSites, weatherObservationsForMeasurementSites, startDateString, endDateString, false, TrafficWeatherAggregator.ExportFormat.HDF5);
       } else {
         System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
         System.err.println("No known arguments provided when running the program.");

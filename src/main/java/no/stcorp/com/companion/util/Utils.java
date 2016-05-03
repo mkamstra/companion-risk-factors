@@ -9,7 +9,9 @@ import java.nio.file.*;
 import java.time.Instant;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Scanner;
+import java.util.stream.Collectors;
 
 /**
  * A container for some generally applicable methods
@@ -57,11 +59,26 @@ public class Utils {
    * Convert a JFreeChart RegularTimePeriod (which represents data points in JFreeChart TimeSeries) to 
    * Java Instant objects (start and end)
    */
-  public static Pair<Instant, Instant> convertRegularTimePeriodToInstants(RegularTimePeriod rtp) {
+  public static double[] convertTimeSeriesDataItemToDouble(TimeSeriesDataItem tsdp) {
+
+    RegularTimePeriod rtp = tsdp.getPeriod();
     Date start = rtp.getStart();
     Date end = rtp.getEnd();
-    return new Pair<Instant, Instant>(start.toInstant(), end.toInstant());
+
+    double startEpoch = start.toInstant().getEpochSecond();
+    double stopEpoch = end.toInstant().getEpochSecond();
+    double value = tsdp.getValue().doubleValue();
+
+    return new double[]{startEpoch, stopEpoch, value};
   }
 
+  public static List<double[]> convertTimeSeriesToList(TimeSeries ts) {
 
+    int count = ts.getItemCount();
+
+    List<TimeSeriesDataItem> items = ts.getItems();
+    List<double[]> ds = items.stream().map( tsp -> convertTimeSeriesDataItemToDouble(tsp)).collect(Collectors.toList());
+
+    return ds;
+  }
 }
