@@ -222,14 +222,14 @@ public class CompanionRiskFactors {
         ser.runSvm();
       } else if (cmd.hasOption("tcm")) {
         String[] arguments = cmd.getOptionValues("tcm");
-        TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
+        TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc, mCompanionProperties);
         //startDateString = "2016031610";
         startDateString = arguments[0];
         startDate = formatter.parse(startDateString, ZonedDateTime::from).toInstant();
-        trn.runCurrentMeasurements(ftpUser, ftpPassword, importedFtpUrl, ftpFolder, startDate, useLocalNdwData, localNdwFolder);
+        trn.runCurrentMeasurements(startDate);
       } else if (cmd.hasOption("ts")) {
-        TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
-        Map<String, List<SiteMeasurement>> speedMeasurements = trn.runTrafficNDWSpeed(ftpUser, ftpPassword, importedFtpUrl, ftpFolder, ndwIdPattern, startDate, endDate);
+        TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc, mCompanionProperties);
+        Map<String, List<SiteMeasurement>> speedMeasurements = trn.runTrafficNDWSpeed(ndwIdPattern, startDate, endDate);
         trn.printSiteMeasurementsPerSite(speedMeasurements);
       } else if (cmd.hasOption("wo")) {
         WeatherRetrieverKNMI wrk = new WeatherRetrieverKNMI(sc);
@@ -268,9 +268,9 @@ public class CompanionRiskFactors {
         endDateStringKNMI = formatterWeatherKNMI.format(endDate);
         System.out.println("Start date KNMI: " + startDateStringKNMI + " - end date KNMI: " + endDateStringKNMI + " (from command line)");
 
-        TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
+        TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc, mCompanionProperties);
         // trn.runCurrentMeasurements(ftpUrl);
-        Map<String, List<SiteMeasurement>> currentSpeedMeasurementsForMeasurementsSites = trn.runTrafficNDWSpeed(ftpUser, ftpPassword, importedFtpUrl, ftpFolder, ndwIdPattern, startDate, endDate);
+        Map<String, List<SiteMeasurement>> currentSpeedMeasurementsForMeasurementsSites = trn.runTrafficNDWSpeed(ndwIdPattern, startDate, endDate);
 
         WeatherRetrieverKNMI wrk = new WeatherRetrieverKNMI(sc);
         Map<String, List<String>> weatherObservationsForMeasurementSites = wrk.run(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
@@ -289,9 +289,9 @@ public class CompanionRiskFactors {
         endDateStringKNMI = formatterWeatherKNMI.format(endDate);
         System.out.println("Start date KNMI: " + startDateStringKNMI + " - end date KNMI: " + endDateStringKNMI + " (from command line)");
 
-        TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
+        TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc, mCompanionProperties);
         // trn.runCurrentMeasurements(ftpUrl);
-        Map<String, List<SiteMeasurement>> currentSpeedMeasurementsForMeasurementsSites = trn.runTrafficNDWSpeed(ftpUser, ftpPassword, importedFtpUrl, ftpFolder, ndwIdPattern, startDate, endDate);
+        Map<String, List<SiteMeasurement>> currentSpeedMeasurementsForMeasurementsSites = trn.runTrafficNDWSpeed(ndwIdPattern, startDate, endDate);
 
         WeatherRetrieverKNMI wrk = new WeatherRetrieverKNMI(sc);
         Map<String, List<String>> weatherObservationsForMeasurementSites = wrk.run(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
