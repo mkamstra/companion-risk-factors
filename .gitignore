@@ -246,3 +246,5 @@ MLInputGenerator.class
 model_LR_2016-02-10_15-10-40
 OpenBLAS/
 run_companion_local.sh
+*.bos
+*.jar
