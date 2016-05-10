@@ -96,7 +96,9 @@ public class CompanionRiskFactors {
      * A Spark configuration object with a name for the application. The master (a Spark, Mesos or YARN cluster URL) 
      * is not set as it will be obtained by launching the application with spark-submit.
      */
-    SparkConf conf = new SparkConf().setAppName("COMPANION Weather Traffic Change Detection System")
+
+    SparkConf conf = new SparkConf().setMaster("local")
+      .setAppName("COMPANION Weather Traffic Change Detection System")
       .set("spark.executor.memory", "3g")
       .set("spark.driver.memory", "3g")
       .set("spark.executor.maxResultSize", "3g")
@@ -206,25 +208,30 @@ public class CompanionRiskFactors {
       String endDateStringKNMI = formatterWeatherKNMI.format(endDate);
       System.out.println("Start date KNMI: " + startDateStringKNMI + " - end date KNMI: " + endDateStringKNMI + " (hard coded)");
 
+      JavaSparkContext sc = new JavaSparkContext(conf);
+
+      sc.setCheckpointDir("/tmp/spark/");
+
+      System.out.println("-------------Attach debugger now!--------------");
+
+      Thread.sleep(8000);
+
       if (cmd.hasOption("se")) {
         SparkExamplesRunner ser = new SparkExamplesRunner(conf);
         //ser.run();
         ser.runSvm();
       } else if (cmd.hasOption("tcm")) {
         String[] arguments = cmd.getOptionValues("tcm");
-        JavaSparkContext sc = new JavaSparkContext(conf);
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
         //startDateString = "2016031610";
         startDateString = arguments[0];
         startDate = formatter.parse(startDateString, ZonedDateTime::from).toInstant();
         trn.runCurrentMeasurements(ftpUser, ftpPassword, importedFtpUrl, ftpFolder, startDate, useLocalNdwData, localNdwFolder);
       } else if (cmd.hasOption("ts")) {
-        JavaSparkContext sc = new JavaSparkContext(conf);
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
         Map<String, List<SiteMeasurement>> speedMeasurements = trn.runTrafficNDWSpeed(ftpUser, ftpPassword, importedFtpUrl, ftpFolder, ndwIdPattern, startDate, endDate);
         trn.printSiteMeasurementsPerSite(speedMeasurements);
       } else if (cmd.hasOption("wo")) {
-        JavaSparkContext sc = new JavaSparkContext(conf);
         WeatherRetrieverKNMI wrk = new WeatherRetrieverKNMI(sc);
         wrk.run(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
       } else if (cmd.hasOption("plot")) {
@@ -261,8 +268,6 @@ public class CompanionRiskFactors {
         endDateStringKNMI = formatterWeatherKNMI.format(endDate);
         System.out.println("Start date KNMI: " + startDateStringKNMI + " - end date KNMI: " + endDateStringKNMI + " (from command line)");
 
-        JavaSparkContext sc = new JavaSparkContext(conf);
-
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
         // trn.runCurrentMeasurements(ftpUrl);
         Map<String, List<SiteMeasurement>> currentSpeedMeasurementsForMeasurementsSites = trn.runTrafficNDWSpeed(ftpUser, ftpPassword, importedFtpUrl, ftpFolder, ndwIdPattern, startDate, endDate);
@@ -283,8 +288,6 @@ public class CompanionRiskFactors {
         startDateStringKNMI = formatterWeatherKNMI.format(startDate);
         endDateStringKNMI = formatterWeatherKNMI.format(endDate);
         System.out.println("Start date KNMI: " + startDateStringKNMI + " - end date KNMI: " + endDateStringKNMI + " (from command line)");
-
-        JavaSparkContext sc = new JavaSparkContext(conf);
 
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc);
         // trn.runCurrentMeasurements(ftpUrl);
