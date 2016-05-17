@@ -30,7 +30,7 @@ public class TrafficWeatherAggregator {
 
   public void getWeatherAndTrafficPerMeasurementSite(Map<String, List<SiteMeasurement>> pCurrentSpeedMeasurementsForMeasurementsSites,
     Map<String, List<String>> pWeatherObservationsForMeasurementSites, String pStartDateString, String pEndDateString,
-                                                     boolean pPlot, ExportFormat pExportFormat) {
+                                                     boolean pPlot, ExportFormat pExportFormat, String pExportPath) {
     // Loop over the speed measurements per measurement site
     for (Entry<String, List<SiteMeasurement>> speedEntry : pCurrentSpeedMeasurementsForMeasurementsSites.entrySet()) {
       String ndwId = speedEntry.getKey();
@@ -59,10 +59,10 @@ public class TrafficWeatherAggregator {
           case NOEXPORT:
             break;
           case BOS:
-            tdc.writeDataToFile("./", ndwId, pStartDateString, pEndDateString);
+            tdc.writeDataToFile(pExportPath, ndwId, pStartDateString, pEndDateString);
             break;
           case HDF5:
-            tdc.writeHDF5("./", ndwId, pStartDateString, pEndDateString);
+            tdc.writeHDF5(pExportPath, ndwId, pStartDateString, pEndDateString);
             break;
         }
       } else {

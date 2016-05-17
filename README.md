@@ -13,21 +13,25 @@ The processing flow will link the weather and traffic data to traffic measuremen
 
 To be able to inspect the relations between the data the plot option is available. Data that has been previously generated will be saved to BOS files that basically contain the chart data for time series, but can very well serve as input data for machine learning as well, since these data contain the correlated traffic and weather data. The plotting option allows for merging multiple files of the same measurement site (NDW ids) to be able inspect longer intervals (as generating the data takes quite long the chart data usually don't contain more than just one day).
 
+The HDF5 export functionality uses JNI (Java Native Interface) libraries. Therefor, to compile this program you must select which platform's JNI library to use. You configure this by commenting out the appropriate jhdf5.native tags in the pom.xml file. After that you run `mvn package` as usual for Maven projects.
+
 Run the program as follows (from the root of the software, ie. where you find this README.md file):
 
-* ./run_companion.sh tcm (add traffic measurement sites to the database if they are not there already; it is recommended to do this first when you run the software for the first time)
+* `./run_companion.sh tcm` (add traffic measurement sites to the database if they are not there already; it is recommended to do this first when you run the software for the first time)
 
-* ./run_companion.sh wo (get weather observations and add weater measurement sites to the database if they are not there already; it is recommended to do this second when you run the software for the first time)
+* `./run_companion.sh wo` (get weather observations and add weater measurement sites to the database if they are not there already; it is recommended to do this second when you run the software for the first time)
 
-* ./run_companion.sh link (link weather and traffic stations to each other; needed before being able to process; recommended to do after tcm and wo)
+* `./run_companion.sh link` (link weather and traffic stations to each other; needed before being able to process; recommended to do after tcm and wo)
 
-* ./run_companion.sh proc 2015-12-02-08 2015-12-02-09 (process to link weather and traffic data to each other)
+* `./run_companion.sh proc 2015-12-02-08 2015-12-02-09` (process to link weather and traffic data to each other)
 
-* ./run_companion.sh ts (get traffic speed measurements)
+* `./run_companion.sh export 2015-12-02-08 2015-12-02-09` (like `proc` but exports to HDF5 files)
 
-* ./run_companion.sh plot  (plot BOS files: a window will pop up to select the desired files to plot - the names of the files should be rather self explanatory)
+* `./run_companion.sh ts` (get traffic speed measurements)
 
-* ./run_companion.sh kml (generate a set of kml files regarding the weather and traffic measurement sites)
+* `./run_companion.sh plot`  (plot BOS files: a window will pop up to select the desired files to plot - the names of the files should be rather self explanatory)
+
+* `./run_companion.sh kml` (generate a set of kml files regarding the weather and traffic measurement sites)
 
 
 Note that you can configure the software for your system using the companion.properties file. An example of the contents of this file:

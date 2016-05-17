@@ -276,7 +276,7 @@ public class CompanionRiskFactors {
         Map<String, List<String>> weatherObservationsForMeasurementSites = wrk.run(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
 
         TrafficWeatherAggregator twa = new TrafficWeatherAggregator();
-        twa.getWeatherAndTrafficPerMeasurementSite(currentSpeedMeasurementsForMeasurementsSites, weatherObservationsForMeasurementSites, startDateString, endDateString, true, TrafficWeatherAggregator.ExportFormat.BOS);
+        twa.getWeatherAndTrafficPerMeasurementSite(currentSpeedMeasurementsForMeasurementsSites, weatherObservationsForMeasurementSites, startDateString, endDateString, true, TrafficWeatherAggregator.ExportFormat.BOS, mCompanionProperties.getProperty("ndw.exportFolder"));
       } else if (cmd.hasOption("export")) {
         String[] arguments = cmd.getOptionValues("export");
         List<Instant> returnDates = parseProcessingArguments(arguments, startDate, endDate, options);
@@ -297,7 +297,7 @@ public class CompanionRiskFactors {
         Map<String, List<String>> weatherObservationsForMeasurementSites = wrk.run(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
 
         TrafficWeatherAggregator twa = new TrafficWeatherAggregator();
-        twa.getWeatherAndTrafficPerMeasurementSite(currentSpeedMeasurementsForMeasurementsSites, weatherObservationsForMeasurementSites, startDateString, endDateString, false, TrafficWeatherAggregator.ExportFormat.HDF5);
+        twa.getWeatherAndTrafficPerMeasurementSite(currentSpeedMeasurementsForMeasurementsSites, weatherObservationsForMeasurementSites, startDateString, endDateString, false, TrafficWeatherAggregator.ExportFormat.HDF5, mCompanionProperties.getProperty("ndw.exportFolder"));
       } else {
         System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
         System.err.println("No known arguments provided when running the program.");

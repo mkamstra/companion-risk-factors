@@ -5,12 +5,13 @@
   <name>Companion Weather Traffic Model</name>
   <packaging>jar</packaging>
   <version>0.1</version>
-  <!--<repositories>
+  <repositories>
     <repository>
-      <id>JBoss repository</id>
-      <url>http://repository.jboss.org/nexus/content/groups/public/</url>
+      <id>76df79e3a4d0</id>
+      <name>76df79e3a4d0-releases</name>
+      <url>http://office.stcorp.nl:12213/artifactory/ext-release-local</url>
     </repository>
-  </repositories>-->
+  </repositories>
   <build>
     <plugins>
         <plugin>
@@ -80,13 +81,26 @@
     <scala.binary.version>2.10</scala.binary.version>
     <scala.version>2.10.4</scala.version>
     <spark.version>1.6.0</spark.version>
-    <hdf.version>2.6.1</hdf.version>
+    <jhdf5.version>14.12.6</jhdf5.version>
+    <jhdf5.native>macosx</jhdf5.native>
+    <!--<jhdf5.native>linux</jhdf5.native>-->
+    <!--<jhdf5.native>windows</jhdf5.native>-->
   </properties>
   <dependencies>
     <dependency>
-      <groupId>org.hdfgroup</groupId>
-      <artifactId>hdf-java</artifactId>
-      <version>${hdf.version}</version>
+      <groupId>ch.systemsx.cisd</groupId>
+      <artifactId>sis-base</artifactId>
+      <version>${jhdf5.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>ch.systemsx.cisd</groupId>
+      <artifactId>sis-jhdf5-core</artifactId>
+      <version>${jhdf5.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>ch.systemsx.cisd</groupId>
+      <artifactId>sis-jhdf5-native-${jhdf5.native}</artifactId>
+      <version>${jhdf5.version}</version>
     </dependency>
     <dependency> <!-- Spark dependency -->
       <groupId>org.apache.spark</groupId>

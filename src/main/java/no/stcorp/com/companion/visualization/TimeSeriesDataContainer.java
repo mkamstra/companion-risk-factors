@@ -7,11 +7,10 @@ import java.time.*;
 import java.util.Date;
 import java.util.List;
 
+import ch.systemsx.cisd.hdf5.HDF5Factory;
+import ch.systemsx.cisd.hdf5.IHDF5SimpleWriter;
 import no.stcorp.com.companion.util.Utils;
 import org.jfree.data.time.*;
-
-import ncsa.hdf.hdf5lib.H5;
-import ncsa.hdf.hdf5lib.HDF5Constants;
 
 /**
  * Class holding the data that for example can be plotted
@@ -64,56 +63,55 @@ public class TimeSeriesDataContainer {
 	public void writeHDF5(String path, String pNdwId, String pStartDate, String pEndDate) {
 		String fileName = path + "_" + pNdwId + "_" + pStartDate + "_" + pEndDate + ".hdf";
 
+		IHDF5SimpleWriter writer = HDF5Factory.open(fileName);
+
+		int[] trafficIntDims = {1, 2};  // default is a NaN entry
+		double[][] trafficData = {{Double.NaN, Double.NaN}};
+		int[] temperatureIntDims = {1, 2};  // default is a NaN entry
+		double[][] temperatureData = {{Double.NaN, Double.NaN}};
+		int[] precipitationIntDims = {1, 2};  // default is a NaN entry
+		double[][] precipitationData = {{Double.NaN, Double.NaN}};
+		int[] windspeedIntDims = {1, 2};  // default is a NaN entry
+		double[][] windspeedData = {{Double.NaN, Double.NaN}};
+
 		// TrafficSeries
-		int fileId = -1;
-		int datasetId = -1;
-		int dcplId = -1;
-		int spaceId = -1;
-		int typeId = -1;
-		int[] intdims = {trafficspeedSeries.getItemCount(), 2}; // timeseries are columns
-		long[] longdims = {trafficspeedSeries.getItemCount(), 2};
+		if (trafficspeedSeries.getItemCount() > 0) {
+			trafficIntDims = new int[] {trafficspeedSeries.getItemCount(), 2}; // timeseries are columns
 
-		// long[] maxdims = {HDF5Constants.H5F_UNLIMITED, 2};
-
-		List<double[]> dataList = Utils.convertTimeSeriesToList(trafficspeedSeries);
-		double[][] data = dataList.toArray(new double[intdims[0]][intdims[1]]);
-
-		try {
-			fileId = H5.H5Fcreate(fileName, HDF5Constants.H5F_ACC_TRUNC, HDF5Constants.H5P_DEFAULT, HDF5Constants.H5P_DEFAULT);
-
-			dcplId = H5.H5Pcreate(HDF5Constants.H5P_DATASET_CREATE);
-
-			spaceId = H5.H5Screate_simple(2, longdims, null);
-
-			typeId = H5.H5Tarray_create(HDF5Constants.H5T_INTEL_F64, 2, intdims, null);
-
-		} catch (Exception e){
-			e.printStackTrace();
+			List<double[]> dataList = Utils.convertTimeSeriesToList(trafficspeedSeries);
+			trafficData = dataList.toArray(new double[trafficIntDims[0]][trafficIntDims[1]]);
 		}
 
-		try {
+		// TemperatureSeries
+		if (temperatureSeries.getItemCount() > 0) {
+			temperatureIntDims = new int[] {temperatureSeries.getItemCount(), 2}; // timeseries are columns
 
-			if ((fileId >= 0) && (dcplId >= 0)) {
-				datasetId = H5.H5Dcreate(fileId, "trafficspeed", typeId, spaceId, dcplId);
-			}
-
-			if (datasetId >= 0) {
-				H5.H5Dwrite(datasetId, typeId, HDF5Constants.H5S_ALL, HDF5Constants.H5S_ALL, HDF5Constants.H5P_DEFAULT, data);
-			}
-
-		} catch (Exception e) {
-			e.printStackTrace();
-		} finally {
-			try {
-				H5.H5Dclose(datasetId);
-				H5.H5Tclose(typeId);
-				H5.H5Sclose(spaceId);
-				H5.H5Pclose(dcplId);
-				H5.H5Fclose(fileId);
-			} catch (Exception f) {
-				f.printStackTrace();
-			}
+			List<double[]> dataList = Utils.convertTimeSeriesToList(temperatureSeries);
+			temperatureData = dataList.toArray(new double[temperatureIntDims[0]][temperatureIntDims[1]]);
 		}
+
+		// PrecipitationSeries
+		if (precipitationSeries.getItemCount() > 0) {
+			precipitationIntDims = new int[] {precipitationSeries.getItemCount(), 2}; // timeseries are columns
+
+			List<double[]> dataList = Utils.convertTimeSeriesToList(precipitationSeries);
+			precipitationData = dataList.toArray(new double[precipitationIntDims[0]][precipitationIntDims[1]]);
+		}
+
+		// WindspeedSeries
+		if (windspeedSeries.getItemCount() > 0) {
+			windspeedIntDims = new int[] {windspeedSeries.getItemCount(), 2}; // timeseries are columns
+
+			List<double[]> dataList = Utils.convertTimeSeriesToList(windspeedSeries);
+			windspeedData = dataList.toArray(new double[windspeedIntDims[0]][windspeedIntDims[1]]);
+		}
+
+		writer.writeDoubleMatrix("trafficspeed", trafficData);
+		writer.writeDoubleMatrix("temperature", temperatureData);
+		writer.writeDoubleMatrix("precipitation", precipitationData);
+		writer.writeDoubleMatrix("windspeed", windspeedData);
+
+		writer.close();
 	}
 
     /**
