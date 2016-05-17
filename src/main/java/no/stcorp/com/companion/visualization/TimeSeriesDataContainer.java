@@ -9,6 +9,7 @@ import java.util.List;
 
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5SimpleWriter;
+import ch.systemsx.cisd.hdf5.IHDF5Writer;
 import no.stcorp.com.companion.util.Utils;
 import org.jfree.data.time.*;
 
@@ -60,10 +61,7 @@ public class TimeSeriesDataContainer {
     }
 
 
-	public void writeHDF5(String path, String pNdwId, String pStartDate, String pEndDate) {
-		String fileName = path + "_" + pNdwId + "_" + pStartDate + "_" + pEndDate + ".hdf";
-
-		IHDF5SimpleWriter writer = HDF5Factory.open(fileName);
+	public void writeHDF5(IHDF5Writer writer, String pNdwId) {
 
 		int[] trafficIntDims = {1, 2};  // default is a NaN entry
 		double[][] trafficData = {{Double.NaN, Double.NaN}};
@@ -106,12 +104,15 @@ public class TimeSeriesDataContainer {
 			windspeedData = dataList.toArray(new double[windspeedIntDims[0]][windspeedIntDims[1]]);
 		}
 
-		writer.writeDoubleMatrix("trafficspeed", trafficData);
-		writer.writeDoubleMatrix("temperature", temperatureData);
-		writer.writeDoubleMatrix("precipitation", precipitationData);
-		writer.writeDoubleMatrix("windspeed", windspeedData);
+		writer.writeDoubleMatrix(pNdwId + "/trafficspeed", trafficData);
+		writer.string().setAttr(pNdwId + "/trafficspeed", "units", "timestamp_start, timestamp_end, km/h");
+		writer.writeDoubleMatrix(pNdwId + "/temperature", temperatureData);
+		writer.string().setAttr(pNdwId + "/temperature", "units", "timestamp_start, timestamp_end, C");
+		writer.writeDoubleMatrix(pNdwId + "/precipitation", precipitationData);
+		writer.string().setAttr(pNdwId + "/precipitation", "units", "timestamp_start, timestamp_end, mm/h");
+		writer.writeDoubleMatrix(pNdwId + "/windspeed", windspeedData);
+		writer.string().setAttr(pNdwId + "/windspeed", "units", "timestamp_start, timestamp_end, m/s");
 
-		writer.close();
 	}
 
     /**

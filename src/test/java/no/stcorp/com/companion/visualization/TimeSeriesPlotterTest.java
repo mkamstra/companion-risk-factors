@@ -2,8 +2,8 @@ package no.stcorp.com.companion.visualization;
 
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5SimpleReader;
-import ch.systemsx.cisd.hdf5.IHDF5SimpleWriter;
 
+import ch.systemsx.cisd.hdf5.IHDF5Writer;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -82,14 +82,16 @@ public class TimeSeriesPlotterTest {
   @Test
   public void HDF5Test() {
 
-    IHDF5SimpleWriter writer = HDF5Factory.open("TestHDF.hdf5");
+    IHDF5Writer writer = HDF5Factory.open("_TestHDF.hdf5");
 
     float[] myData = {10, 10, 10, 10};
 
-    writer.writeFloatArray("myData", myData);
+    writer.writeFloatArray("/myData", myData);
+    writer.time().setAttr("/", "generation", System.currentTimeMillis());
+    writer.writeFloatArray("inside_group/myData", myData);
     writer.close();
 
-    IHDF5SimpleReader reader = HDF5Factory.openForReading("TestHDF.hdf5");
+    IHDF5SimpleReader reader = HDF5Factory.openForReading("_TestHDF.hdf5");
 
     float[] readData = reader.readFloatArray("myData");
     Assert.assertArrayEquals(myData, readData, 0.01f);

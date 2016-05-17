@@ -214,12 +214,13 @@ public class CompanionRiskFactors {
 
       System.out.println("-------------Attach debugger now!--------------");
 
-      Thread.sleep(8000);
+      Thread.sleep(4000);
 
       if (cmd.hasOption("se")) {
         SparkExamplesRunner ser = new SparkExamplesRunner(conf);
         //ser.run();
         ser.runSvm();
+
       } else if (cmd.hasOption("tcm")) {
         String[] arguments = cmd.getOptionValues("tcm");
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc, mCompanionProperties);
@@ -227,21 +228,26 @@ public class CompanionRiskFactors {
         startDateString = arguments[0];
         startDate = formatter.parse(startDateString, ZonedDateTime::from).toInstant();
         trn.runCurrentMeasurements(startDate);
+
       } else if (cmd.hasOption("ts")) {
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc, mCompanionProperties);
         Map<String, List<SiteMeasurement>> speedMeasurements = trn.runTrafficNDWSpeed(ndwIdPattern, startDate, endDate);
         trn.printSiteMeasurementsPerSite(speedMeasurements);
+
       } else if (cmd.hasOption("wo")) {
         WeatherRetrieverKNMI wrk = new WeatherRetrieverKNMI(sc);
         wrk.run(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
+
       } else if (cmd.hasOption("plot")) {
         CompanionPlotter plotter = new CompanionPlotter();
         plotter.plot();
+
       } else if (cmd.hasOption("link")) {
         // Add a link between all measurement sites and weather stations. Only needs to be done when measurement site and 
         // weather station tables have been filled without adding these links. Normally not needed to do this.
         DatabaseManager dbMgr = DatabaseManager.getInstance();
         dbMgr.linkAllMeasurementSitesWithClosestWeatherStation();
+
       } else if (cmd.hasOption("kml")) {
         // Generate KML from database data
         DatabaseManager dbMgr = DatabaseManager.getInstance();
@@ -256,6 +262,7 @@ public class CompanionRiskFactors {
         kmlGenerator.generateKmlForMeasurementSites(msPatternMatchingList);
         List<MeasurementSiteSegment> msSegmentList = dbMgr.getAllMeasurementSitesWithAtLeastTwoCoordinates();
         kmlGenerator.generateKmlForMeasurementSitesWithSegments(msSegmentList);
+
       } else if (cmd.hasOption("proc")) {
         String[] arguments = cmd.getOptionValues("proc");
         List<Instant> returnDates = parseProcessingArguments(arguments, startDate, endDate, options);
@@ -277,6 +284,7 @@ public class CompanionRiskFactors {
 
         TrafficWeatherAggregator twa = new TrafficWeatherAggregator();
         twa.getWeatherAndTrafficPerMeasurementSite(currentSpeedMeasurementsForMeasurementsSites, weatherObservationsForMeasurementSites, startDateString, endDateString, true, TrafficWeatherAggregator.ExportFormat.BOS, mCompanionProperties.getProperty("ndw.exportFolder"));
+
       } else if (cmd.hasOption("export")) {
         String[] arguments = cmd.getOptionValues("export");
         List<Instant> returnDates = parseProcessingArguments(arguments, startDate, endDate, options);
@@ -298,6 +306,7 @@ public class CompanionRiskFactors {
 
         TrafficWeatherAggregator twa = new TrafficWeatherAggregator();
         twa.getWeatherAndTrafficPerMeasurementSite(currentSpeedMeasurementsForMeasurementsSites, weatherObservationsForMeasurementSites, startDateString, endDateString, false, TrafficWeatherAggregator.ExportFormat.HDF5, mCompanionProperties.getProperty("ndw.exportFolder"));
+
       } else {
         System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
         System.err.println("No known arguments provided when running the program.");

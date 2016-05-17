@@ -1,8 +1,11 @@
 package no.stcorp.com.companion.aggregate;
 
+import ch.systemsx.cisd.hdf5.HDF5Factory;
+import ch.systemsx.cisd.hdf5.IHDF5Writer;
 import no.stcorp.com.companion.traffic.*;
 import no.stcorp.com.companion.visualization.*;
 
+import java.text.SimpleDateFormat;
 import java.time.*;
 import java.time.format.*;
 
@@ -20,6 +23,8 @@ public class TrafficWeatherAggregator {
     HDF5
   }
 
+  private IHDF5Writer writer;
+
   /**
    * @param pCurrentSpeedMeasurementsForMeasurementsSites A map of speed measurements per measurement site (key: NDW id)
    * @param pWeatherObservationsForMeasurementSites A map of weather observations per measurement site (key: NDW id)
@@ -31,6 +36,17 @@ public class TrafficWeatherAggregator {
   public void getWeatherAndTrafficPerMeasurementSite(Map<String, List<SiteMeasurement>> pCurrentSpeedMeasurementsForMeasurementsSites,
     Map<String, List<String>> pWeatherObservationsForMeasurementSites, String pStartDateString, String pEndDateString,
                                                      boolean pPlot, ExportFormat pExportFormat, String pExportPath) {
+
+    if (pExportFormat == ExportFormat.HDF5) {
+      String fileName = pExportPath + "TS_" + pStartDateString + "_" + pEndDateString + ".hdf";
+      Date date = new Date(System.currentTimeMillis());
+      SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd-HH"); // the format
+      writer = HDF5Factory.open(fileName);
+      writer.string().setAttr("/", "generation_datetime", sdf.format(date));
+      writer.string().setAttr("/", "start_datetime", pStartDateString);
+      writer.string().setAttr("/", "end_datetime", pEndDateString);
+    }
+
     // Loop over the speed measurements per measurement site
     for (Entry<String, List<SiteMeasurement>> speedEntry : pCurrentSpeedMeasurementsForMeasurementsSites.entrySet()) {
       String ndwId = speedEntry.getKey();
@@ -46,13 +62,13 @@ public class TrafficWeatherAggregator {
         // Loop over the weather observations which are sorted in time
         // Create a plot for each day
         TimeSeriesDataContainer tdc = new TimeSeriesDataContainer();
-        TimeSeriesPlotter tsp = new TimeSeriesPlotter("Weather and traffic at measurement site " + ndwId);
         for (String wo : wos) {
           storeTrafficAndWeatherDataForOneMeasurementSite(wo, tdc, sms);
         }
         // Finished, so show the plot
         if (pPlot) {
           System.out.println("Plotting due to end of loop");
+          TimeSeriesPlotter tsp = new TimeSeriesPlotter("Weather and traffic at measurement site " + ndwId);
           tsp.plot(ndwId, pStartDateString, pEndDateString, tdc);
         }
         switch (pExportFormat) {
@@ -62,13 +78,17 @@ public class TrafficWeatherAggregator {
             tdc.writeDataToFile(pExportPath, ndwId, pStartDateString, pEndDateString);
             break;
           case HDF5:
-            tdc.writeHDF5(pExportPath, ndwId, pStartDateString, pEndDateString);
+            tdc.writeHDF5(writer, ndwId);
             break;
         }
       } else {
         System.err.println("  No weather observations for this measurement site");
       }
       System.err.println("-------------------------------------------------");
+    }
+
+    if (pExportFormat == ExportFormat.HDF5) {
+      writer.close();
     }
   }
 
