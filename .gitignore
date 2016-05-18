@@ -248,3 +248,4 @@ OpenBLAS/
 run_companion_local.sh
 *.bos
 *.jar
+*.hdf5

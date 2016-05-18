@@ -1,31 +1,28 @@
 package no.stcorp.com.companion;
 
-import no.stcorp.com.companion.aggregate.*;
-import no.stcorp.com.companion.database.*;
-import no.stcorp.com.companion.kml.*;
-import no.stcorp.com.companion.spark.*;
-import no.stcorp.com.companion.traffic.*;
-import no.stcorp.com.companion.weather.*;
-import no.stcorp.com.companion.visualization.*;
-import no.stcorp.com.companion.xml.*;
-
+import no.stcorp.com.companion.aggregate.TrafficWeatherAggregator;
+import no.stcorp.com.companion.database.DatabaseManager;
+import no.stcorp.com.companion.kml.KmlGenerator;
+import no.stcorp.com.companion.spark.SparkExamplesRunner;
+import no.stcorp.com.companion.traffic.MeasurementSite;
+import no.stcorp.com.companion.traffic.MeasurementSiteSegment;
+import no.stcorp.com.companion.traffic.SiteMeasurement;
+import no.stcorp.com.companion.traffic.TrafficRetrieverNDW;
+import no.stcorp.com.companion.visualization.CompanionPlotter;
+import no.stcorp.com.companion.weather.WeatherRetrieverKNMI;
+import no.stcorp.com.companion.weather.WeatherStation;
 import org.apache.commons.cli.*;
-
-import org.apache.spark.api.java.*;
 import org.apache.spark.SparkConf;
-import org.apache.spark.SparkFiles;
-import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.FlatMapFunction;
+import org.apache.spark.api.java.JavaSparkContext;
 
-import java.io.*;
-
-import java.time.*;
-import java.time.format.*;
-
+import java.io.FileInputStream;
+import java.time.DateTimeException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.Map.*;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public class CompanionRiskFactors {
   private static final Pattern SPACE = Pattern.compile(" ");
@@ -252,7 +249,7 @@ public class CompanionRiskFactors {
         // Generate KML from database data
         DatabaseManager dbMgr = DatabaseManager.getInstance();
         List<WeatherStation> wsList = dbMgr.getAllWeatherStations();
-        KmlGenerator kmlGenerator = new KmlGenerator();
+        KmlGenerator kmlGenerator = new KmlGenerator(mCompanionProperties.getProperty("ndw.kmlFolder"));
         kmlGenerator.generateKmlForWeatherStations(wsList);
         List<MeasurementSite> msList = dbMgr.getAllMeasurementSites();
         kmlGenerator.generateKmlForMeasurementSites(msList);
@@ -305,7 +302,7 @@ public class CompanionRiskFactors {
         Map<String, List<String>> weatherObservationsForMeasurementSites = wrk.run(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
 
         TrafficWeatherAggregator twa = new TrafficWeatherAggregator();
-        twa.getWeatherAndTrafficPerMeasurementSite(currentSpeedMeasurementsForMeasurementsSites, weatherObservationsForMeasurementSites, startDateString, endDateString, false, TrafficWeatherAggregator.ExportFormat.HDF5, mCompanionProperties.getProperty("ndw.exportFolder"));
+        twa.getWeatherAndTrafficPerMeasurementSite(currentSpeedMeasurementsForMeasurementsSites, weatherObservationsForMeasurementSites, startDateString, endDateString, false, TrafficWeatherAggregator.ExportFormat.HDF5, mCompanionProperties.getProperty("ndw.hdfFolder"));
 
       } else {
         System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");

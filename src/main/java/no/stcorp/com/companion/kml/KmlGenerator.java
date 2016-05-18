@@ -1,15 +1,9 @@
 package no.stcorp.com.companion.kml;
 
-import no.stcorp.com.companion.logging.*;
-import no.stcorp.com.companion.traffic.*;
-import no.stcorp.com.companion.weather.*;
-
-import java.io.*;
-import java.util.*;
-import java.util.logging.*;
-import java.time.*;
-import java.time.format.*;
-
+import no.stcorp.com.companion.traffic.Location;
+import no.stcorp.com.companion.traffic.MeasurementSite;
+import no.stcorp.com.companion.traffic.MeasurementSiteSegment;
+import no.stcorp.com.companion.weather.WeatherStation;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -21,6 +15,13 @@ import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+import java.io.FileOutputStream;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 /**
@@ -30,9 +31,12 @@ public class KmlGenerator {
 	
 	private final static Logger LOGGER = Logger.getLogger(KmlGenerator.class.getName());
 
-	public KmlGenerator() {
-		LOGGER.setLevel(Level.INFO);
-    LOGGER.info("Creating KMl generator");
+    private String mKMLPath;
+
+	public KmlGenerator(String pPath) {
+	  LOGGER.setLevel(Level.INFO);
+      LOGGER.info("Creating KMl generator");
+      mKMLPath = pPath;
 	}
 
 	public void generateKmlForWeatherStations(List<WeatherStation> weatherStations) {
@@ -91,8 +95,11 @@ public class KmlGenerator {
       Source src = new DOMSource(doc);
       Instant now = Instant.now();
       DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault());
-      Result dest = new StreamResult(File.createTempFile("WeatherStations_" + formatter.format(now), ".kml"));
+
+      Result dest = new StreamResult(new FileOutputStream(mKMLPath + "WeatherStations_" + formatter.format(now) + ".kml"));
+//      Result dest = new StreamResult(File.createTempFile("WeatherStations_" + formatter.format(now), ".kml"));
       aTransformer.transform(src, dest);
+
       LOGGER.info("Completed.....");
     } catch (Exception ex) {
     	ex.printStackTrace();
@@ -156,7 +163,9 @@ public class KmlGenerator {
       Source src = new DOMSource(doc);
       Instant now = Instant.now();
       DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault());
-      Result dest = new StreamResult(File.createTempFile("MeasurementSites_" + formatter.format(now), ".kml"));
+
+      Result dest = new StreamResult(new FileOutputStream(mKMLPath + "MeasurementSites_" + formatter.format(now) + ".kml"));
+
       aTransformer.transform(src, dest);
       LOGGER.info("Completed.....");
     } catch (Exception ex) {
@@ -245,7 +254,9 @@ public class KmlGenerator {
       Source src = new DOMSource(doc);
       Instant now = Instant.now();
       DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault());
-      Result dest = new StreamResult(File.createTempFile("MeasurementSitesWithSegments_" + formatter.format(now), ".kml"));
+
+      Result dest = new StreamResult(new FileOutputStream(mKMLPath + "MeasurementSitesWithSegments_" + formatter.format(now) + ".kml"));
+
       aTransformer.transform(src, dest);
       LOGGER.info("Completed.....");
     } catch (Exception ex) {
