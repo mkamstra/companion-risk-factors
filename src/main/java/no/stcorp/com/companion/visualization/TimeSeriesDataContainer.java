@@ -63,18 +63,18 @@ public class TimeSeriesDataContainer {
 
 	public void writeHDF5(IHDF5Writer writer, String pNdwId) {
 
-		int[] trafficIntDims = {1, 2};  // default is a NaN entry
-		double[][] trafficData = {{Double.NaN, Double.NaN}};
-		int[] temperatureIntDims = {1, 2};  // default is a NaN entry
-		double[][] temperatureData = {{Double.NaN, Double.NaN}};
-		int[] precipitationIntDims = {1, 2};  // default is a NaN entry
-		double[][] precipitationData = {{Double.NaN, Double.NaN}};
-		int[] windspeedIntDims = {1, 2};  // default is a NaN entry
-		double[][] windspeedData = {{Double.NaN, Double.NaN}};
+		int[] trafficIntDims = {1, 3};  // default is a NaN entry
+		double[][] trafficData = {{Double.NaN, Double.NaN, Double.NaN}};
+		int[] temperatureIntDims = {1, 3};  // default is a NaN entry
+		double[][] temperatureData = {{Double.NaN, Double.NaN, Double.NaN}};
+		int[] precipitationIntDims = {1, 3};  // default is a NaN entry
+		double[][] precipitationData = {{Double.NaN, Double.NaN, Double.NaN}};
+		int[] windspeedIntDims = {1, 3};  // default is a NaN entry
+		double[][] windspeedData = {{Double.NaN, Double.NaN, Double.NaN}};
 
 		// TrafficSeries
 		if (trafficspeedSeries.getItemCount() > 0) {
-			trafficIntDims = new int[] {trafficspeedSeries.getItemCount(), 2}; // timeseries are columns
+			trafficIntDims = new int[] {trafficspeedSeries.getItemCount(), 3}; // timeseries are columns
 
 			List<double[]> dataList = Utils.convertTimeSeriesToList(trafficspeedSeries);
 			trafficData = dataList.toArray(new double[trafficIntDims[0]][trafficIntDims[1]]);
@@ -82,7 +82,7 @@ public class TimeSeriesDataContainer {
 
 		// TemperatureSeries
 		if (temperatureSeries.getItemCount() > 0) {
-			temperatureIntDims = new int[] {temperatureSeries.getItemCount(), 2}; // timeseries are columns
+			temperatureIntDims = new int[] {temperatureSeries.getItemCount(), 3}; // timeseries are columns
 
 			List<double[]> dataList = Utils.convertTimeSeriesToList(temperatureSeries);
 			temperatureData = dataList.toArray(new double[temperatureIntDims[0]][temperatureIntDims[1]]);
@@ -90,7 +90,7 @@ public class TimeSeriesDataContainer {
 
 		// PrecipitationSeries
 		if (precipitationSeries.getItemCount() > 0) {
-			precipitationIntDims = new int[] {precipitationSeries.getItemCount(), 2}; // timeseries are columns
+			precipitationIntDims = new int[] {precipitationSeries.getItemCount(), 3}; // timeseries are columns
 
 			List<double[]> dataList = Utils.convertTimeSeriesToList(precipitationSeries);
 			precipitationData = dataList.toArray(new double[precipitationIntDims[0]][precipitationIntDims[1]]);
@@ -98,7 +98,7 @@ public class TimeSeriesDataContainer {
 
 		// WindspeedSeries
 		if (windspeedSeries.getItemCount() > 0) {
-			windspeedIntDims = new int[] {windspeedSeries.getItemCount(), 2}; // timeseries are columns
+			windspeedIntDims = new int[] {windspeedSeries.getItemCount(), 3}; // timeseries are columns
 
 			List<double[]> dataList = Utils.convertTimeSeriesToList(windspeedSeries);
 			windspeedData = dataList.toArray(new double[windspeedIntDims[0]][windspeedIntDims[1]]);
