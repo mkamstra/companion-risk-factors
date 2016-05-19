@@ -7,8 +7,6 @@ import java.time.*;
 import java.util.Date;
 import java.util.List;
 
-import ch.systemsx.cisd.hdf5.HDF5Factory;
-import ch.systemsx.cisd.hdf5.IHDF5SimpleWriter;
 import ch.systemsx.cisd.hdf5.IHDF5Writer;
 import no.stcorp.com.companion.util.Utils;
 import org.jfree.data.time.*;
@@ -18,6 +16,7 @@ import org.jfree.data.time.*;
  */
 public class TimeSeriesDataContainer {
 	public enum SeriesType {
+	  TRAFFICFLOW,
 	  TRAFFICSPEED, 
 	  TEMPERATURE, 
 	  PRECIPITATION, 
@@ -27,7 +26,8 @@ public class TimeSeriesDataContainer {
 	TimeSeries temperatureSeries = new TimeSeries("Temperature (C)");
 	TimeSeries precipitationSeries = new TimeSeries("Precipitation (mm/h)");
 	TimeSeries windspeedSeries = new TimeSeries("Wind Speed (m/s)");
-	TimeSeries trafficspeedSeries = new TimeSeries("Traffic speed (km/h)");
+	TimeSeries trafficSpeedSeries = new TimeSeries("Traffic speed (km/h)");
+	TimeSeries trafficFlowSeries = new TimeSeries("Traffic flow (counts/h)");
 
 	/**
 	 * Read data from file for a specific time series
@@ -39,8 +39,11 @@ public class TimeSeriesDataContainer {
 	    	ObjectInput in = new ObjectInputStream(new ByteArrayInputStream(byteArray));
             TimeSeries tmpSeries = (TimeSeries) in.readObject();
     		switch (pSeriesType) {
+				case TRAFFICFLOW:
+					trafficFlowSeries.addAndOrUpdate(tmpSeries);
+					break;
     			case TRAFFICSPEED:
-    				trafficspeedSeries.addAndOrUpdate(tmpSeries) ;
+    				trafficSpeedSeries.addAndOrUpdate(tmpSeries) ;
     				break;
     			case TEMPERATURE:
                     temperatureSeries.addAndOrUpdate(tmpSeries);
@@ -63,8 +66,10 @@ public class TimeSeriesDataContainer {
 
 	public void writeHDF5(IHDF5Writer writer, String pNdwId) {
 
-		int[] trafficIntDims = {1, 3};  // default is a NaN entry
-		double[][] trafficData = {{Double.NaN, Double.NaN, Double.NaN}};
+		int[] trafficFlowIntDims = {1, 3};  // default is a NaN entry
+		double[][] trafficFlowData = {{Double.NaN, Double.NaN, Double.NaN}};
+		int[] trafficSpeedIntDims = {1, 3};  // default is a NaN entry
+		double[][] trafficSpeedData = {{Double.NaN, Double.NaN, Double.NaN}};
 		int[] temperatureIntDims = {1, 3};  // default is a NaN entry
 		double[][] temperatureData = {{Double.NaN, Double.NaN, Double.NaN}};
 		int[] precipitationIntDims = {1, 3};  // default is a NaN entry
@@ -72,12 +77,20 @@ public class TimeSeriesDataContainer {
 		int[] windspeedIntDims = {1, 3};  // default is a NaN entry
 		double[][] windspeedData = {{Double.NaN, Double.NaN, Double.NaN}};
 
-		// TrafficSeries
-		if (trafficspeedSeries.getItemCount() > 0) {
-			trafficIntDims = new int[] {trafficspeedSeries.getItemCount(), 3}; // timeseries are columns
+		// TrafficFlowSeries
+		if (trafficFlowSeries.getItemCount() > 0) {
+			trafficFlowIntDims = new int[] {trafficFlowSeries.getItemCount(), 3}; // timeseries are columns
 
-			List<double[]> dataList = Utils.convertTimeSeriesToList(trafficspeedSeries);
-			trafficData = dataList.toArray(new double[trafficIntDims[0]][trafficIntDims[1]]);
+			List<double[]> dataList = Utils.convertTimeSeriesToList(trafficFlowSeries);
+			trafficFlowData = dataList.toArray(new double[trafficFlowIntDims[0]][trafficFlowIntDims[1]]);
+		}
+
+		// TrafficSpeedSeries
+		if (trafficSpeedSeries.getItemCount() > 0) {
+			trafficSpeedIntDims = new int[] {trafficSpeedSeries.getItemCount(), 3}; // timeseries are columns
+
+			List<double[]> dataList = Utils.convertTimeSeriesToList(trafficSpeedSeries);
+			trafficSpeedData = dataList.toArray(new double[trafficSpeedIntDims[0]][trafficSpeedIntDims[1]]);
 		}
 
 		// TemperatureSeries
@@ -104,7 +117,9 @@ public class TimeSeriesDataContainer {
 			windspeedData = dataList.toArray(new double[windspeedIntDims[0]][windspeedIntDims[1]]);
 		}
 
-		writer.writeDoubleMatrix(pNdwId + "/trafficspeed", trafficData);
+		writer.writeDoubleMatrix(pNdwId + "/trafficflow", trafficFlowData);
+		writer.string().setAttr(pNdwId + "/trafficflow", "units", "timestamp_start, timestamp_end, counts/h");
+		writer.writeDoubleMatrix(pNdwId + "/trafficspeed", trafficSpeedData);
 		writer.string().setAttr(pNdwId + "/trafficspeed", "units", "timestamp_start, timestamp_end, km/h");
 		writer.writeDoubleMatrix(pNdwId + "/temperature", temperatureData);
 		writer.string().setAttr(pNdwId + "/temperature", "units", "timestamp_start, timestamp_end, C");
@@ -121,6 +136,7 @@ public class TimeSeriesDataContainer {
     public void writeDataToFile(String pPath, String pNdwId, String pStartDate, String pEndDate) {
 		String pFilePath = pPath + "_" + pNdwId + "_" + pStartDate + "_" + pEndDate + ".bos";
 
+		writeDataToFile(SeriesType.TRAFFICFLOW, pFilePath, pStartDate, pEndDate);
 		writeDataToFile(SeriesType.TRAFFICSPEED, pFilePath, pStartDate, pEndDate);
     	writeDataToFile(SeriesType.TEMPERATURE, pFilePath, pStartDate, pEndDate);
     	writeDataToFile(SeriesType.PRECIPITATION, pFilePath, pStartDate, pEndDate);
@@ -137,8 +153,11 @@ public class TimeSeriesDataContainer {
     		baos = new ByteArrayOutputStream();
     		out = new ObjectOutputStream(baos);
     		switch (pSeriesType) {
+				case TRAFFICFLOW:
+    				out.writeObject(trafficFlowSeries);
+    				break;
     			case TRAFFICSPEED:
-    				out.writeObject(trafficspeedSeries);
+    				out.writeObject(trafficSpeedSeries);
     				break;
     			case TEMPERATURE:
     				out.writeObject(temperatureSeries);
@@ -194,18 +213,29 @@ public class TimeSeriesDataContainer {
     	}
     }
 
-    public void addTrafficspeedRecord(Instant pTime, double pTrafficspeed) {
+    public void addTrafficflowRecord(Instant pTime, double pTrafficflow) {
     	Minute minute = new Minute(Date.from(pTime));
-    	if (trafficspeedSeries.getDataItem(minute) != null) {
-    		System.err.println("Trying to add traffic speed at minute " + minute + " but a value for that minute exists already");
+    	if (trafficFlowSeries.getDataItem(minute) != null) {
+    		System.err.println("Trying to add traffic flow at minute " + minute + " but a value for that minute exists already");
     	} else {
-    		trafficspeedSeries.add(minute, pTrafficspeed);
+    		trafficFlowSeries.add(minute, pTrafficflow);
     	}
     }
   
-  	public TimeSeries getTrafficspeedSeries() {
-  		return trafficspeedSeries;
+    public void addTrafficspeedRecord(Instant pTime, double pTrafficspeed) {
+    	Minute minute = new Minute(Date.from(pTime));
+    	if (trafficSpeedSeries.getDataItem(minute) != null) {
+    		System.err.println("Trying to add traffic speed at minute " + minute + " but a value for that minute exists already");
+    	} else {
+    		trafficSpeedSeries.add(minute, pTrafficspeed);
+    	}
+    }
+
+  	public TimeSeries getTrafficFlowSeries() {
+  		return trafficFlowSeries;
   	}
+
+  	public TimeSeries getTrafficSpeedSeries() { return trafficSpeedSeries; }
 
   	public TimeSeries getTemperatureSeries() {
   		return temperatureSeries;

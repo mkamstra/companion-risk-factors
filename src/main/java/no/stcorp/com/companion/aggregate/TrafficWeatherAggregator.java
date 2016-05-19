@@ -138,7 +138,9 @@ public class TrafficWeatherAggregator {
               // This traffic measurement is in the same hour as the weather observation
               System.out.println("      " + sm);
               List<MeasuredValue> mvs = sm.getMeasuredValues();
+              double sumFlow = 0;
               double sumSpeed = 0;
+              int nrOfFlows = 0;
               int nrOfSpeeds = 0;
               for (MeasuredValue mv : mvs) {
                 String type = mv.getType();
@@ -150,15 +152,28 @@ public class TrafficWeatherAggregator {
                     sumSpeed += speed;
                     nrOfSpeeds++;
                   }
+                } else if (type.equalsIgnoreCase("TrafficFlow")) {
+                  double flow = mv.getValue();
+                  if (flow < 0)
+                    continue;
+                  else {
+                    sumFlow += flow;
+                    nrOfFlows++;
+                  }
                 }
               }
               double averageSpeed = 0.0;
               if (nrOfSpeeds > 0)
                 averageSpeed = sumSpeed / (double) nrOfSpeeds;
 
-              System.out.println("Adding speed record: " + formatterComplete.format(timeSm) + ", speed: " + averageSpeed);
+              double averageFlow = 0.0;
+              if (nrOfFlows > 0)
+                averageFlow = sumFlow/ (double) nrOfFlows;
+
+              System.out.println("Adding speed/flow record: " + formatterComplete.format(timeSm) + ", speed: " + averageSpeed + ", flow:" + averageFlow);
               //waitForUserInput();
 
+              pTimeSeriesDataContainer.addTrafficflowRecord(timeSm, averageFlow);
               pTimeSeriesDataContainer.addTrafficspeedRecord(timeSm, averageSpeed);
               relevantSms.add(sm);
             }
