@@ -30,9 +30,8 @@ public class TrafficWeatherAggregator {
    * @param pWeatherObservationsForMeasurementSites A map of weather observations per measurement site (key: NDW id)
    * @param pStartDateString Start date in format yyyyMMddHH
    * @param pEndDateString End date in format yyyyMMddHH
-   * Get the speed measurements and weather observations per measurement site. They are also stored as plot data and eventuall plotted
+   * Get the speed measurements and weather observations per measurement site. They are also stored as plot data and eventually plotted
    */
-
   public void getWeatherAndTrafficPerMeasurementSite(Map<String, List<SiteMeasurement>> pCurrentSpeedMeasurementsForMeasurementsSites,
     Map<String, List<String>> pWeatherObservationsForMeasurementSites, String pStartDateString, String pEndDateString,
                                                      boolean pPlot, ExportFormat pExportFormat, String pExportPath) {
