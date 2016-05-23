@@ -68,7 +68,7 @@ public class TimeSeriesPlotter extends ApplicationFrame {
     final DateAxis domainAxis = new DateAxis("Time");
     domainAxis.setTickMarkPosition(DateTickMarkPosition.MIDDLE);
     final ValueAxis rangeAxisTrafficspeed = new NumberAxis("Traffic speed (km/h)");
-    TimeSeries trafficspeedSeries = tdc.getTrafficspeedSeries();
+    TimeSeries trafficspeedSeries = tdc.getTrafficSpeedSeries();
     rangeAxisTrafficspeed.setLowerBound(0.9 * trafficspeedSeries.getMinY());
     rangeAxisTrafficspeed.setUpperBound(1.5 * trafficspeedSeries.getMaxY());
     final IntervalXYDataset dataTrafficspeed = new TimeSeriesCollection(trafficspeedSeries);
@@ -128,7 +128,7 @@ public class TimeSeriesPlotter extends ApplicationFrame {
     plot.setRenderer(2, rendererLineTemperature);
     
     final ValueAxis rangeAxisWindspeed = new NumberAxis("Wind speed (m/s)");
-    TimeSeries windspeedSeries = tdc.getWindspeedSeries();
+    TimeSeries windspeedSeries = tdc.getWindSpeedSeries();
     rangeAxisWindspeed.setLowerBound(-2.0 * windspeedSeries.getMaxY());
     rangeAxisWindspeed.setUpperBound(1.2 * windspeedSeries.getMaxY());
     plot.setRangeAxis(3, rangeAxisWindspeed);
