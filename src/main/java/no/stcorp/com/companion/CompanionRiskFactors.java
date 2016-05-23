@@ -94,6 +94,10 @@ public class CompanionRiskFactors {
      * is not set as it will be obtained by launching the application with spark-submit.
      */
 
+    /**
+     * This spark task can be remotely debugged. See http://danosipov.com/?p=779 for details.
+     */
+
     SparkConf conf = new SparkConf().setMaster("local")
       .setAppName("COMPANION Weather Traffic Change Detection System")
       .set("spark.executor.memory", "3g")
@@ -221,7 +225,6 @@ public class CompanionRiskFactors {
       } else if (cmd.hasOption("tcm")) {
         String[] arguments = cmd.getOptionValues("tcm");
         TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc, mCompanionProperties);
-        //startDateString = "2016031610";
         startDateString = arguments[0];
         startDate = formatter.parse(startDateString, ZonedDateTime::from).toInstant();
         trn.runCurrentMeasurements(startDate);
