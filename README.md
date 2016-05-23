@@ -2,6 +2,8 @@
 
 A prototype to determine the effect of weather and change detections to traffic using Apache Spark. This requires Apache Spark to be installed. It has been tested to work on Ubuntu 15.04, but should be platform independent. If not please report so.
 
+Build it using Maven (typically mvn package on the directory where this readme file is located). Note that you might need to change a line in the pom.xml file: <jhdf5.native>linux</jhdf5.native>  Set this to the platform that is applicable.
+
 The prototype has been designed to work for the Netherlands due to the availability of high resolution traffic data as well as observed weather data at no costs.
 
 The weather data is downloaded from the KNMI website which can provide historical weather on an hourly basis for a large number of parameters, such as temperature, precipitation, wind direction, wind speed, etc... It can be downloaded for free until the last hour of the previous day. 
