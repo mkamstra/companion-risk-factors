@@ -192,7 +192,7 @@ public class CompanionRiskFactors {
       // For more information on this issue see: https://github.com/HariSekhon/spark-apps/blob/master/build.sbt
       CommandLine cmd = parser.parse(options, args, true);
 
-      String ndwIdPattern = "RWS01_MONIBAS_0131hrl00%";
+      String ndwIdPattern = "RWS01_MONIBAS_0131hrl00%"; // This is the pattern for some waypoints on the A13 near Delft RWS01_MONIBAS_0131hrl00% Please change where needed
       // Times specified in whole hours (weather is not available at higher resolution than that anyway)
       // Default values (used in some - testing - options; will normally be overwritten by option arguments, especially the proc argument)
       String startDateString = "2016010815";
