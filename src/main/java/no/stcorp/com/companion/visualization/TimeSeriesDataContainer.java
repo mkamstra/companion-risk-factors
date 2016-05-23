@@ -25,7 +25,7 @@ public class TimeSeriesDataContainer {
 
 	TimeSeries temperatureSeries = new TimeSeries("Temperature (C)");
 	TimeSeries precipitationSeries = new TimeSeries("Precipitation (mm/h)");
-	TimeSeries windspeedSeries = new TimeSeries("Wind Speed (m/s)");
+	TimeSeries windSpeedSeries = new TimeSeries("Wind Speed (m/s)");
 	TimeSeries trafficSpeedSeries = new TimeSeries("Traffic speed (km/h)");
 	TimeSeries trafficFlowSeries = new TimeSeries("Traffic flow (counts/h)");
 
@@ -52,7 +52,7 @@ public class TimeSeriesDataContainer {
                     precipitationSeries.addAndOrUpdate(tmpSeries);
     				break;
     			case WINDSPEED:
-                    windspeedSeries.addAndOrUpdate(tmpSeries);
+                    windSpeedSeries.addAndOrUpdate(tmpSeries);
     				break;
     			default:
     				break;
@@ -74,8 +74,8 @@ public class TimeSeriesDataContainer {
 		double[][] temperatureData = {{Double.NaN, Double.NaN, Double.NaN}};
 		int[] precipitationIntDims = {1, 3};  // default is a NaN entry
 		double[][] precipitationData = {{Double.NaN, Double.NaN, Double.NaN}};
-		int[] windspeedIntDims = {1, 3};  // default is a NaN entry
-		double[][] windspeedData = {{Double.NaN, Double.NaN, Double.NaN}};
+		int[] windSpeedIntDims = {1, 3};  // default is a NaN entry
+		double[][] windSpeedData = {{Double.NaN, Double.NaN, Double.NaN}};
 
 		// TrafficFlowSeries
 		if (trafficFlowSeries.getItemCount() > 0) {
@@ -110,11 +110,11 @@ public class TimeSeriesDataContainer {
 		}
 
 		// WindspeedSeries
-		if (windspeedSeries.getItemCount() > 0) {
-			windspeedIntDims = new int[] {windspeedSeries.getItemCount(), 3}; // timeseries are columns
+		if (windSpeedSeries.getItemCount() > 0) {
+			windSpeedIntDims = new int[] {windSpeedSeries.getItemCount(), 3}; // timeseries are columns
 
-			List<double[]> dataList = Utils.convertTimeSeriesToList(windspeedSeries);
-			windspeedData = dataList.toArray(new double[windspeedIntDims[0]][windspeedIntDims[1]]);
+			List<double[]> dataList = Utils.convertTimeSeriesToList(windSpeedSeries);
+			windSpeedData = dataList.toArray(new double[windSpeedIntDims[0]][windSpeedIntDims[1]]);
 		}
 
 		writer.writeDoubleMatrix(pNdwId + "/trafficflow", trafficFlowData);
@@ -125,7 +125,7 @@ public class TimeSeriesDataContainer {
 		writer.string().setAttr(pNdwId + "/temperature", "units", "timestamp_start, timestamp_end, C");
 		writer.writeDoubleMatrix(pNdwId + "/precipitation", precipitationData);
 		writer.string().setAttr(pNdwId + "/precipitation", "units", "timestamp_start, timestamp_end, mm/h");
-		writer.writeDoubleMatrix(pNdwId + "/windspeed", windspeedData);
+		writer.writeDoubleMatrix(pNdwId + "/windspeed", windSpeedData);
 		writer.string().setAttr(pNdwId + "/windspeed", "units", "timestamp_start, timestamp_end, m/s");
 
 	}
@@ -166,7 +166,7 @@ public class TimeSeriesDataContainer {
     				out.writeObject(precipitationSeries);
     				break;
     			case WINDSPEED:
-    				out.writeObject(windspeedSeries);
+    				out.writeObject(windSpeedSeries);
     				break;
     			default:
     				break;
@@ -206,10 +206,10 @@ public class TimeSeriesDataContainer {
 
     public void addWindspeedRecord(Instant pTime, double pWindspeed) {
     	Hour hour = new Hour(Date.from(pTime));
-    	if (windspeedSeries.getDataItem(hour) != null) {
+    	if (windSpeedSeries.getDataItem(hour) != null) {
     		System.err.println("Trying to add wind speed at hour " + hour + " but a value for that hour exists already");
     	} else {
-    		windspeedSeries.add(hour, pWindspeed);
+    		windSpeedSeries.add(hour, pWindspeed);
     	}
     }
 
@@ -245,7 +245,7 @@ public class TimeSeriesDataContainer {
   		return precipitationSeries;
   	}
 
-  	public TimeSeries getWindspeedSeries() {
-  		return windspeedSeries;
+  	public TimeSeries getWindSpeedSeries() {
+  		return windSpeedSeries;
   	}
 }
