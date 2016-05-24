@@ -122,9 +122,18 @@ public class WeatherRetrieverKNMI implements Serializable {
       // Get the weather and traffic for a traffic measurement point (or more than one). Currently matching a NDW id pattern.
       DatabaseManager dbMgr = DatabaseManager.getInstance();
       Map<String, Integer> weatherStationForMeasurementPoints = dbMgr.getWeatherStationForMeasurementPoints(pNdwIdPattern);
+      int counter = 0;
+      int numberOfMPs = weatherStationForMeasurementPoints.size();
+      long startTime = System.currentTimeMillis();
+      System.out.println("Getting the weather for the selected traffic measurement points");
       for (Entry<String, Integer> wsMp : weatherStationForMeasurementPoints.entrySet()) {
+        counter++;
         int selectedStationNdwId = wsMp.getValue();
-        System.out.println("Measurement point " + wsMp.getKey() + " gets weather from weather station " + selectedStationNdwId + "; getting weather observations for this station");
+        if (counter % 100 == 0) {
+          long currentTime = System.currentTimeMillis();
+          double usedTime = (currentTime - startTime) / 1000;
+          System.out.println("[" + counter + " out of " + numberOfMPs + "]  Time used: " + usedTime + " [s]");
+        }
         List<String> weatherObservationsForStation = weatherObservations.filter(new Function<String, Boolean>() {
           private static final long serialVersionUID = 7L;
           public Boolean call(String s) { 
@@ -176,15 +185,15 @@ public class WeatherRetrieverKNMI implements Serializable {
       System.out.println("Something went wrong trying to download and parse weather data;" + ex.getMessage());
       ex.printStackTrace();
     }
-    System.out.println("Finished with weather");
-    try {
+    System.out.println("Finished with getting weather for the traffic measurement sites");
+/**    try {
       System.out.println("Putting app to sleep for 10 seconds after weather actions");
       Thread.sleep(10000);
     } catch (InterruptedException ex) {
       System.out.println("Something went wrong putting the app to sleep for 100 seconds again");
       ex.printStackTrace();
       Thread.currentThread().interrupt();
-    }
+    }*/
     return weatherObservationsForMeasurementSite;
   }
 
