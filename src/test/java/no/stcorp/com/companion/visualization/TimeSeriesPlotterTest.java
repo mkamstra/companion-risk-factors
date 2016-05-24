@@ -45,7 +45,7 @@ public class TimeSeriesPlotterTest {
         }
       }
     }
-    assertEquals(720, tdc.getTrafficspeedSeries().getItemCount());
+    assertEquals(720, tdc.getTrafficSpeedSeries().getItemCount());
     assertEquals(240, tdc.getTemperatureSeries().getItemCount());
     assertEquals(240, tdc.getPrecipitationSeries().getItemCount());
     assertEquals(240, tdc.getWindspeedSeries().getItemCount());
@@ -71,7 +71,7 @@ public class TimeSeriesPlotterTest {
     tdc.importDataSeries(TimeSeriesDataContainer.SeriesType.TEMPERATURE, fileNameTemperature);
     tdc.importDataSeries(TimeSeriesDataContainer.SeriesType.PRECIPITATION, fileNamePrecipitation);
     tdc.importDataSeries(TimeSeriesDataContainer.SeriesType.WINDSPEED, fileNameWindspeed);
-    assertEquals(137, tdc.getTrafficspeedSeries().getItemCount());
+    assertEquals(137, tdc.getTrafficSpeedSeries().getItemCount());
     assertEquals(24, tdc.getTemperatureSeries().getItemCount());
     assertEquals(24, tdc.getPrecipitationSeries().getItemCount());
     assertEquals(24, tdc.getWindspeedSeries().getItemCount());

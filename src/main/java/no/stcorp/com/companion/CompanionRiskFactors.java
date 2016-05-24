@@ -126,10 +126,13 @@ public class CompanionRiskFactors {
      * you. Instead use something like the following to set the driver memory for local mode:
      * /home/osboxes/Tools/spark-1.5.1/bin/spark-submit --driver-memory 2g --class "CompanionRiskFactors" --master local[*] target/CompanionWeatherTraffic-0.1.jar
      */
-    String ftpUser = getProperty("ndw.ftp.user"); 
+
+    String ndwIdPattern = getProperty("ndw.idPattern");
+    String ftpUser = getProperty("ndw.ftp.user");
     String ftpPassword = getProperty("ndw.ftp.password"); 
     String importedFtpUrl = getProperty("ndw.ftp.url"); 
     String ftpFolder = getProperty("ndw.ftp.folder").replaceAll("\\/", "//");
+
     if (!ftpFolder.startsWith("//"))
       ftpFolder = "//" + ftpFolder;
     
@@ -196,7 +199,6 @@ public class CompanionRiskFactors {
       // For more information on this issue see: https://github.com/HariSekhon/spark-apps/blob/master/build.sbt
       CommandLine cmd = parser.parse(options, args, true);
 
-      String ndwIdPattern = "RWS01_MONIBAS_0131hrl00%";
       // Times specified in whole hours (weather is not available at higher resolution than that anyway)
       // Default values (used in some - testing - options; will normally be overwritten by option arguments, especially the proc argument)
       String startDateString = "2016010815";
