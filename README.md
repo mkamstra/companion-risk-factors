@@ -47,3 +47,6 @@ Note that you can configure the software for your system using the companion.pro
 > `ndw.db.password=*********`<br>
 > `ndw.db.host=192.168.99.100`<br>
 > `ndw.db.port=32768`<br>
+
+
+Note that Spark can generate an insane amount of input making it hard to find your own log messages back. To reduce this you can find the log4j.properties file in the conf directory here and copy it to the conf directory of your Spark installation (e.g. /usr/local/spark-1.6.0-bin-hadoop2.6/conf/)
