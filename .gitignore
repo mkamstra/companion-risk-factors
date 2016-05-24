@@ -249,3 +249,6 @@ run_companion_local.sh
 *.bos
 *.jar
 *.hdf5
+.idea/
+CompanionWeatherTraffic.iml
+companion.properties.mk

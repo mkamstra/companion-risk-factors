@@ -48,7 +48,7 @@ public class TimeSeriesPlotterTest {
     assertEquals(720, tdc.getTrafficSpeedSeries().getItemCount());
     assertEquals(240, tdc.getTemperatureSeries().getItemCount());
     assertEquals(240, tdc.getPrecipitationSeries().getItemCount());
-    assertEquals(240, tdc.getWindspeedSeries().getItemCount());
+    assertEquals(240, tdc.getWindSpeedSeries().getItemCount());
     tdc.writeDataToFile("./", ndwId, timeStartString, timeEndString);
     TimeSeriesPlotter tsp = new TimeSeriesPlotter("Weather and traffic at measurement site " + ndwId);
     tsp.plot(ndwId, timeStartString, timeEndString, tdc);
@@ -74,7 +74,7 @@ public class TimeSeriesPlotterTest {
     assertEquals(137, tdc.getTrafficSpeedSeries().getItemCount());
     assertEquals(24, tdc.getTemperatureSeries().getItemCount());
     assertEquals(24, tdc.getPrecipitationSeries().getItemCount());
-    assertEquals(24, tdc.getWindspeedSeries().getItemCount());
+    assertEquals(24, tdc.getWindSpeedSeries().getItemCount());
     TimeSeriesPlotter tsp = new TimeSeriesPlotter("Weather and traffic at measurement site " + ndwId);
     tsp.plot(ndwId, timeStartString, timeEndString, tdc);
   }

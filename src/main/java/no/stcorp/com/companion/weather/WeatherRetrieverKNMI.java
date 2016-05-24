@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
  * Class responsible for obtaining weather data from the Dutch meteorological institute (KNMI)
  */
 public class WeatherRetrieverKNMI implements Serializable {
- 	private static final long serialVersionUID = 51559559L;
+  private static final long serialVersionUID = 51559559L;
 
   private static JavaSparkContext mSparkContext;
 
@@ -38,22 +38,22 @@ public class WeatherRetrieverKNMI implements Serializable {
    * Constructor
    * @param pSparkContext The Spark context needed for example to download files from the KNMI website
    */
-	public WeatherRetrieverKNMI(JavaSparkContext pSparkContext) {
+  public WeatherRetrieverKNMI(JavaSparkContext pSparkContext) {
     mSparkContext = pSparkContext;
-	}
+  }
 
-	/**
-	 * Download weather from the KNMI for the traffic measurement sites that match specified ndw id pattern within the specified
-	 * start and end date.
-	 * @param pNwdIdPattern The pattern the NDW id should match
-	 * @param pStartDate Start date in format yyyyMMddHH
-	 * @param pEndDate End date in format yyyyMMddHH
-	 * @return A map containing all relevant weather observations per NDW measurement site
-	 *
-	 * HH represents the hour that was just finished (i.e. 15 implies 14.00 - 15.00). To get an entire day typically use
-	 * 01 - 24 for the hours
-	 */
-	public Map<String, List<String>> run(String pNdwIdPattern, String pStartDate, String pEndDate) {
+  /**
+   * Download weather from the KNMI for the traffic measurement sites that match specified ndw id pattern within the specified
+   * start and end date.
+   * @param pNdwIdPattern The pattern the NDW id should match
+   * @param pStartDate Start date in format yyyyMMddHH
+   * @param pEndDate End date in format yyyyMMddHH
+   * @return A map containing all relevant weather observations per NDW measurement site
+   *
+   * HH represents the hour that was just finished (i.e. 15 implies 14.00 - 15.00). To get an entire day typically use
+   * 01 - 24 for the hours
+   */
+  public Map<String, List<String>> run(String pNdwIdPattern, String pStartDate, String pEndDate) {
     System.out.println("Downloading weather for ndw id pattern: " + pNdwIdPattern + ", start date: " + pStartDate + ", end date: " + pEndDate);
     Map<String, List<String>> weatherObservationsForMeasurementSite = new HashMap<String, List<String>>();
     String url = "http://projects.knmi.nl/klimatologie/uurgegevens/getdata_uur.cgi";
@@ -186,9 +186,9 @@ public class WeatherRetrieverKNMI implements Serializable {
       Thread.currentThread().interrupt();
     }
     return weatherObservationsForMeasurementSite;
-	}
+  }
 
-	private String readInputStream(InputStream input) throws IOException {
+  private String readInputStream(InputStream input) throws IOException {
     try (BufferedReader buffer = new BufferedReader(new InputStreamReader(input))) {
       return buffer.lines().collect(Collectors.joining("____"));
     }
