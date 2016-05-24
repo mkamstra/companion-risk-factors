@@ -1,0 +1,3 @@
+[submodule "traffic-data-downloader-ndw"]
+	path = traffic-data-downloader-ndw
+	url = https://github.com/mkamstra/traffic-data-downloader-ndw
