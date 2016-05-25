@@ -47,11 +47,20 @@ public class TrafficWeatherAggregator {
     }
 
     // Loop over the speed measurements per measurement site
+    int counter = 0;
+    long startTime = System.currentTimeMillis();
+    int numberOfMPs = pCurrentSpeedMeasurementsForMeasurementsSites.size();
     for (Entry<String, List<SiteMeasurement>> speedEntry : pCurrentSpeedMeasurementsForMeasurementsSites.entrySet()) {
+      counter++;
+      if (counter % 100 == 0) {
+        long currentTime = System.currentTimeMillis();
+        double usedTime = (currentTime - startTime) / 1000;
+        System.out.println("[" + counter + " out of " + numberOfMPs + "]  Time used: " + usedTime + " [s]");
+      }
       String ndwId = speedEntry.getKey();
       List<SiteMeasurement> sms = speedEntry.getValue();
-      System.err.println("=================================================");
-      System.out.println("Measurement site: " + ndwId);
+      //System.err.println("=================================================");
+      //System.out.println("Measurement site: " + ndwId);
       // Check if there are weather observations for the current measurement site
       if (pWeatherObservationsForMeasurementSites.containsKey(ndwId)) {
         List<String> wos = pWeatherObservationsForMeasurementSites.get(ndwId);
@@ -66,7 +75,7 @@ public class TrafficWeatherAggregator {
         }
         // Finished, so show the plot
         if (pPlot) {
-          System.out.println("Plotting due to end of loop");
+          //System.out.println("Plotting due to end of loop");
           TimeSeriesPlotter tsp = new TimeSeriesPlotter("Weather and traffic at measurement site " + ndwId);
           tsp.plot(ndwId, pStartDateString, pEndDateString, tdc);
         }
@@ -83,7 +92,7 @@ public class TrafficWeatherAggregator {
       } else {
         System.err.println("  No weather observations for this measurement site");
       }
-      System.err.println("-------------------------------------------------");
+      //System.err.println("-------------------------------------------------");
     }
 
     if (pExportFormat == ExportFormat.HDF5) {
