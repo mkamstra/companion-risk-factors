@@ -103,7 +103,7 @@ public class WeatherRetrieverKNMI implements Serializable {
       writer.write(weatherResponse);
       writer.close();
       JavaRDD<String> weatherData = mSparkContext.textFile(tmpFile.getAbsolutePath()).cache();
-      System.out.println("Weather data count before parsing: " + weatherData.count());
+      //System.out.println("Weather data count before parsing: " + weatherData.count());
       //System.out.println(readInputStream(is));
       JavaRDD<String> weatherObservationsNotFormatted = weatherData.map(new WeatherKNMIParser());
       // Now write to file again to let the parser create a proper paralellizable list of observations
@@ -114,6 +114,7 @@ public class WeatherRetrieverKNMI implements Serializable {
         writerObservations.write(wo);
       }
       writerObservations.close();
+      System.out.println("Weather observations have been save to file: " + tmpFileObservations.getAbsolutePath());
       JavaRDD<String> weatherObservations = mSparkContext.textFile(tmpFileObservations.getAbsolutePath()).cache();
       System.out.println("Weather data count after parsing: " + weatherObservations.count());
 
@@ -129,7 +130,7 @@ public class WeatherRetrieverKNMI implements Serializable {
       for (Entry<String, Integer> wsMp : weatherStationForMeasurementPoints.entrySet()) {
         counter++;
         int selectedStationNdwId = wsMp.getValue();
-        if (counter % 100 == 0) {
+        if (counter % 1000 == 0) {
           long currentTime = System.currentTimeMillis();
           double usedTime = (currentTime - startTime) / 1000;
           System.out.println("[" + counter + " out of " + numberOfMPs + "]  Time used: " + usedTime + " [s]");
