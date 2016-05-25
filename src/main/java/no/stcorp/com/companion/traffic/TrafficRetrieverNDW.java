@@ -388,43 +388,41 @@ public class TrafficRetrieverNDW implements Serializable {
         int counterNdw = 0;
         int numberOfSitesNdw = ndwIds.size();
         long startTimeNdw = System.currentTimeMillis();
-        System.out.println("Number of available speed measurements: " + measurementsDistributed.count() + ", number of selected measurement sites: " + numberOfSitesNdw);
+        System.out.println("Number of available speed measurements: " + allMeasurements.size() + ", number of selected measurement sites: " + numberOfSitesNdw);
 
-        long timeMethod1 = 0;
-        long timeMethod2 = 0;
-        long timeMethod11 = 0;
-        long timeMethod21 = 0;
+        long timeMethod = 0;
 
         for (String ndwId : ndwIds) {
             counterNdw++;
             // Filter based on ndw id and then collect into a list
-            Long startTime1 = System.currentTimeMillis();
-            JavaRDD<SiteMeasurement> measurementsForSiteRDD = measurementsDistributed.filter(
-                    new Function<SiteMeasurement, Boolean>() {
-                        public Boolean call(SiteMeasurement sm) {
-                            return sm.getMeasurementSiteReference().equalsIgnoreCase(ndwId);
-                        }
-                    }
-            );
-
+            // The following might be the way to go with Spark, but so far it is extremely slow (like factor 25
+            // compared to using regular Java). In case of distributed processing this might be very different of course
+//            Long startTime1 = System.currentTimeMillis();
+//            JavaRDD<SiteMeasurement> measurementsForSiteRDD = measurementsDistributed.filter(
+//                    new Function<SiteMeasurement, Boolean>() {
+//                        public Boolean call(SiteMeasurement sm) {
+//                            return sm.getMeasurementSiteReference().equalsIgnoreCase(ndwId);
+//                        }
+//                    }
+//            );
+//
+//            long endTime1 = System.currentTimeMillis();
+//            List<SiteMeasurement> measurementsForSite = measurementsForSiteRDD.collect();
+//            long endTime11 = System.currentTimeMillis();
+            long startTime1 = System.currentTimeMillis();
+            List<SiteMeasurement> measurementsForSite = allMeasurements.parallelStream().filter(ms -> ms.getMeasurementSiteReference().equalsIgnoreCase(ndwId)).collect(Collectors.toList());
             long endTime1 = System.currentTimeMillis();
-            List<SiteMeasurement> measurementsForSite = measurementsForSiteRDD.collect();
-            long endTime11 = System.currentTimeMillis();
-            long startTime2 = System.currentTimeMillis();
-            JavaRDD<SiteMeasurement> measurementsForSiteRDD2 = measurementsDistributed.filter(ms -> ms.getMeasurementSiteReference().equalsIgnoreCase(ndwId));
-            long endTime2 = System.currentTimeMillis();
-            List<SiteMeasurement> measurementsForSite2 = measurementsForSiteRDD2.collect();
-            long endTime21 = System.currentTimeMillis();
-            timeMethod1 += endTime1 - startTime1;
-            timeMethod11 += endTime11 - endTime1;
-            timeMethod2 += endTime2 - startTime2;
-            timeMethod21 += endTime21 - endTime2;
-            if (counterNdw % 10 == 0) {
+            //List<SiteMeasurement> measurementsForSite2 = measurementsForSiteRDD2.collect();
+//            timeMethod1 += endTime1 - startTime1;
+//            timeMethod11 += endTime11 - endTime1;
+            timeMethod += endTime1 - startTime1;
+
+            System.out.println("    Number of relevant traffic speed measurements: " + measurementsForSite.size());
+            if (counterNdw % 100 == 0) {
                 long currentTimeNdw = System.currentTimeMillis();
                 double usedTimeNdw = ((double) currentTimeNdw - (double) startTimeNdw) / 1000.0;
                 System.out.println("  Traffic sites : [" + counterNdw + " out of " + numberOfSitesNdw + "]  Time used: " + usedTimeNdw + " [s]");
-                System.out.println("    Time method 1: " + timeMethod1 + " [ms], Time method 2: " + timeMethod2 + " [ms]");
-                System.out.println("    Time method 11 (collect): " + timeMethod11 + " [ms], Time method 21 (collect): " + timeMethod21 + " [ms]");
+                System.out.println("    Time needed for filtering : " + timeMethod + " [ms]");
             }
             //System.out.println("Method 1: " + (endTime1 - startTime1) + ", method 2: " + (endTime2 - startTime2));
             if (measurementsPerSite.containsKey(ndwId)) {
