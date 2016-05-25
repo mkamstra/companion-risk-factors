@@ -530,7 +530,7 @@ public class DatabaseManager implements Serializable {
       Map<Integer, String> selectedNdws = new HashMap<Integer, String>();
       while (rs.next()) {
         int msid = rs.getInt("id");
-        String ndwid = rs.getString("ndwid");
+        String ndwid = rs.getString("ndwid").toLowerCase();
         selectedNdws.put(msid, ndwid);
       }
       rs.close();
