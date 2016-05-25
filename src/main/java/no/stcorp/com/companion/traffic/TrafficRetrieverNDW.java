@@ -379,7 +379,7 @@ public class TrafficRetrieverNDW implements Serializable {
             }
             long currentTime = System.currentTimeMillis();
             double usedTime = (currentTime - startTime) / 1000;
-            System.out.println("  Traffic files : [" + counter + " out of " + numberOfFiles + "]  Time used: " + usedTime + " [s], number of traffic speed measurements: " + allMeasurements.size());
+            System.out.println("  Traffic files : [" + counter + " out of " + numberOfFiles + "], file name: " + trafficFileName + ", time used: " + usedTime + " [s], number of traffic speed measurements: " + allMeasurements.size());
         }
 
         System.out.println("All traffic speed measurements have been collected. Now get the ones relevant to the selected measurement sites.");
@@ -417,14 +417,18 @@ public class TrafficRetrieverNDW implements Serializable {
 //            timeMethod11 += endTime11 - endTime1;
             timeMethod += endTime1 - startTime1;
 
-            System.out.println("    Number of relevant traffic speed measurements: " + measurementsForSite.size());
-            if (counterNdw % 100 == 0) {
+            //System.out.println("    Number of relevant traffic speed measurements: " + measurementsForSite.size());
+            if (counterNdw % 1000 == 0) {
                 long currentTimeNdw = System.currentTimeMillis();
                 double usedTimeNdw = ((double) currentTimeNdw - (double) startTimeNdw) / 1000.0;
                 System.out.println("  Traffic sites : [" + counterNdw + " out of " + numberOfSitesNdw + "]  Time used: " + usedTimeNdw + " [s]");
                 System.out.println("    Time needed for filtering : " + timeMethod + " [ms]");
             }
             //System.out.println("Method 1: " + (endTime1 - startTime1) + ", method 2: " + (endTime2 - startTime2));
+            if (measurementsForSite.size() == 0) {
+                // System.out.println("No traffic speed measurements for measurement site: " + ndwId); // Occurs too often so no printing
+                continue; // Next iteration since this measurement site has no speed measurements for the selected time frame
+            }
             if (measurementsPerSite.containsKey(ndwId)) {
                 // measurementsForSite has been created in such a way that it is not modifyable (like with Arrays.asList()). Therefore
                 // first initialize list and then add elements.
@@ -465,6 +469,8 @@ public class TrafficRetrieverNDW implements Serializable {
             //   Thread.currentThread().interrupt();
             // }
         }
+
+        System.out.println("Number of measurement sites with traffic speed measurements in the selected time frame: " + measurementsPerSite.size() + " out of a total of: " + ndwIds.size() + " measurement sites. The measurement sites without measurements are not further processed.");
         return measurementsPerSite;
     }
 
