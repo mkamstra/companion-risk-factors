@@ -592,7 +592,7 @@ public class DatabaseManager implements Serializable {
       ResultSet rs = st.executeQuery(getMeasurementSitesSql);
       while (rs.next()) {
         String ndwid = rs.getString("ndwid");
-        selectedNdws.add(ndwid);
+        selectedNdws.add(ndwid.toLowerCase());
       }
       rs.close();
       st.close();
