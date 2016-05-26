@@ -40,6 +40,7 @@ public class TrafficWeatherAggregator {
             String fileName = pExportPath + "TS_" + pStartDateString + "_" + pEndDateString + ".hdf";
             Date date = new Date(System.currentTimeMillis());
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd-HH"); // the format
+            System.out.println("Writing weather and traffic data for selected measurement points at selected time interval: " + fileName);
             writer = HDF5Factory.open(fileName);
             writer.string().setAttr("/", "generation_datetime", sdf.format(date));
             writer.string().setAttr("/", "start_datetime", pStartDateString);
@@ -52,10 +53,10 @@ public class TrafficWeatherAggregator {
         int numberOfMPs = pCurrentSpeedMeasurementsForMeasurementsSites.size();
         for (Entry<String, List<SiteMeasurement>> speedEntry : pCurrentSpeedMeasurementsForMeasurementsSites.entrySet()) {
             counter++;
-            if (counter % 100 == 0) {
+            if (counter % 1000 == 0) {
                 long currentTime = System.currentTimeMillis();
                 double usedTime = (currentTime - startTime) / 1000;
-                System.out.println("[" + counter + " out of " + numberOfMPs + "]  Time used: " + usedTime + " [s]");
+                System.out.println("Linking traffic with weather and writing to file: [" + counter + " out of " + numberOfMPs + "]  Time used: " + usedTime + " [s]");
             }
             String ndwId = speedEntry.getKey();
             List<SiteMeasurement> sms = speedEntry.getValue();
