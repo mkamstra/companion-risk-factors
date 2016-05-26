@@ -3,6 +3,7 @@ package no.stcorp.com.companion.aggregate;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Writer;
 import no.stcorp.com.companion.traffic.*;
+import no.stcorp.com.companion.util.Utils;
 import no.stcorp.com.companion.visualization.*;
 
 import java.text.SimpleDateFormat;
@@ -57,6 +58,7 @@ public class TrafficWeatherAggregator {
                 long currentTime = System.currentTimeMillis();
                 double usedTime = (currentTime - startTime) / 1000;
                 System.out.println("Linking traffic with weather and writing to file: [" + counter + " out of " + numberOfMPs + "]  Time used: " + usedTime + " [s]");
+                System.out.println(Utils.getMemoryUsage());
             }
             String ndwId = speedEntry.getKey();
             List<SiteMeasurement> sms = speedEntry.getValue();
@@ -99,6 +101,8 @@ public class TrafficWeatherAggregator {
         if (pExportFormat == ExportFormat.HDF5) {
             writer.close();
         }
+
+        System.out.println(Utils.getMemoryUsage());
     }
 
     /**

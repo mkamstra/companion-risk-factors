@@ -380,6 +380,8 @@ public class TrafficRetrieverNDW implements Serializable {
             long currentTime = System.currentTimeMillis();
             double usedTime = (currentTime - startTime) / 1000;
             System.out.println("  Traffic files : [" + counter + " out of " + numberOfFiles + "], file name: " + trafficFileName + ", time used: " + usedTime + " [s], number of traffic speed measurements: " + allMeasurements.size());
+
+            System.out.println(Utils.getMemoryUsage());
         }
 
         System.out.println("All traffic speed measurements have been collected. Now get the ones relevant to the selected measurement sites.");
@@ -423,6 +425,7 @@ public class TrafficRetrieverNDW implements Serializable {
                 double usedTimeNdw = ((double) currentTimeNdw - (double) startTimeNdw) / 1000.0;
                 System.out.println("  Traffic sites : [" + counterNdw + " out of " + numberOfSitesNdw + "]  Time used: " + usedTimeNdw + " [s]");
                 System.out.println("    Time needed for filtering : " + timeMethod + " [ms]");
+                System.out.println(Utils.getMemoryUsage());
             }
             //System.out.println("Method 1: " + (endTime1 - startTime1) + ", method 2: " + (endTime2 - startTime2));
             if (measurementsForSite.size() == 0) {

@@ -1,6 +1,7 @@
 package no.stcorp.com.companion.weather;
 
 import no.stcorp.com.companion.database.*;
+import no.stcorp.com.companion.util.Utils;
 import no.stcorp.com.companion.xml.*;
 
 import org.apache.http.NameValuePair;
@@ -134,6 +135,7 @@ public class WeatherRetrieverKNMI implements Serializable {
           long currentTime = System.currentTimeMillis();
           double usedTime = (currentTime - startTime) / 1000;
           System.out.println("[" + counter + " out of " + numberOfMPs + "]  Time used: " + usedTime + " [s]");
+          System.out.println(Utils.getMemoryUsage());
         }
         List<String> weatherObservationsForStation = weatherObservations.filter(new Function<String, Boolean>() {
           private static final long serialVersionUID = 7L;
