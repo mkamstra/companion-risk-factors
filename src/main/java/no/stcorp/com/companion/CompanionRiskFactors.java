@@ -231,9 +231,24 @@ public class CompanionRiskFactors {
                 trn.runCurrentMeasurements(startDate);
 
             } else if (cmd.hasOption("ts")) {
+                int numberOfTrafficFilesPerBatch = 1;
+                try {
+                    numberOfTrafficFilesPerBatch = Integer.parseInt(mCompanionProperties.getProperty("ndw.numberOfTrafficSpeedFilesPerBatch")); // A setting to avoid heap space problems by running only a limited number of files at once
+                } catch (Exception ex) {
+                    System.err.println("Property ndw.numberOfTrafficFilesPerBatch not defined so taking one file per batch");
+                }
                 TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc, mCompanionProperties);
-                Map<String, List<SiteMeasurement>> speedMeasurements = trn.runTrafficNDWSpeed(ndwIdPattern, startDate, endDate);
-                trn.printSiteMeasurementsPerSite(speedMeasurements);
+                List<String> relevantTrafficSpeedFiles = trn.getRelevantTrafficSpeedFiles(startDate, endDate);
+                System.out.println("Total number of traffic speed files to be processed: " + relevantTrafficSpeedFiles.size());
+                // Run batches to avoid memory problems. Adjust the ndw.numberOfTrafficFilesPerBatch setting in your properties file
+                for (int fileIndex = 0; fileIndex < relevantTrafficSpeedFiles.size(); fileIndex += numberOfTrafficFilesPerBatch) {
+                    int endFileIndex = Math.min(relevantTrafficSpeedFiles.size(), fileIndex + numberOfTrafficFilesPerBatch);
+                    System.out.println("Starting batch from traffic speed file " + fileIndex + " until " + endFileIndex + " (excluding end index)");
+                    // trn.runCurrentMeasurements(ftpUrl);
+                    List<String> batchTrafficSpeedFiles = relevantTrafficSpeedFiles.subList(fileIndex, endFileIndex);
+                    Map<String, List<SiteMeasurement>> speedMeasurements = trn.runTrafficNDWSpeed(ndwIdPattern, batchTrafficSpeedFiles);
+                    trn.printSiteMeasurementsPerSite(speedMeasurements);
+                }
 
             } else if (cmd.hasOption("wo")) {
                 WeatherRetrieverKNMI wrk = new WeatherRetrieverKNMI(sc);
@@ -276,15 +291,35 @@ public class CompanionRiskFactors {
                 endDateStringKNMI = formatterWeatherKNMI.format(endDate);
                 System.out.println("Start date KNMI: " + startDateStringKNMI + " - end date KNMI: " + endDateStringKNMI + " (from command line)");
 
+                int numberOfTrafficFilesPerBatch = 1;
+                try {
+                    numberOfTrafficFilesPerBatch = Integer.parseInt(mCompanionProperties.getProperty("ndw.numberOfTrafficSpeedFilesPerBatch")); // A setting to avoid heap space problems by running only a limited number of files at once
+                } catch (Exception ex) {
+                    System.err.println("Property ndw.numberOfTrafficFilesPerBatch not defined so taking one file per batch");
+                }
                 TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc, mCompanionProperties);
-                // trn.runCurrentMeasurements(ftpUrl);
-                Map<String, List<SiteMeasurement>> currentSpeedMeasurementsForMeasurementsSites = trn.runTrafficNDWSpeed(ndwIdPattern, startDate, endDate);
+                List<String> relevantTrafficSpeedFiles = trn.getRelevantTrafficSpeedFiles(startDate, endDate);
+                System.out.println("Total number of traffic speed files to be processed: " + relevantTrafficSpeedFiles.size());
+                // Run batches to avoid memory problems. Adjust the ndw.numberOfTrafficFilesPerBatch setting in your properties file
+                Instant now = Instant.now();
+                Map<String, List<String>> weatherObservationsForMeasurementSites = new HashMap<>();
+                for (int fileIndex = 0; fileIndex < relevantTrafficSpeedFiles.size(); fileIndex += numberOfTrafficFilesPerBatch) {
+                    int endFileIndex = Math.min(relevantTrafficSpeedFiles.size(), fileIndex + numberOfTrafficFilesPerBatch);
+                    System.out.println("Starting batch from traffic speed file " + fileIndex + " until " + endFileIndex + " (excluding end index)");
+                    // trn.runCurrentMeasurements(ftpUrl);
+                    List<String> batchTrafficSpeedFiles = relevantTrafficSpeedFiles.subList(fileIndex, endFileIndex);
+                    Map<String, List<SiteMeasurement>> currentSpeedMeasurementsForMeasurementsSites = trn.runTrafficNDWSpeed(ndwIdPattern, batchTrafficSpeedFiles);
 
-                WeatherRetrieverKNMI wrk = new WeatherRetrieverKNMI(sc);
-                Map<String, List<String>> weatherObservationsForMeasurementSites = wrk.run(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
+                    // Only need to do this once as it is a rather slow task and invokes the KNMI API
+                    if (fileIndex == 0) {
+                        WeatherRetrieverKNMI wrk = new WeatherRetrieverKNMI(sc);
+                        weatherObservationsForMeasurementSites = wrk.run(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
+                    }
 
-                TrafficWeatherAggregator twa = new TrafficWeatherAggregator();
-                twa.getWeatherAndTrafficPerMeasurementSite(currentSpeedMeasurementsForMeasurementsSites, weatherObservationsForMeasurementSites, startDateString, endDateString, true, TrafficWeatherAggregator.ExportFormat.BOS, mCompanionProperties.getProperty("ndw.exportFolder"));
+                    TrafficWeatherAggregator twa = new TrafficWeatherAggregator();
+                    // Set the export date the same for all batches
+                    twa.exportWeatherAndTrafficPerMeasurementSite(currentSpeedMeasurementsForMeasurementsSites, weatherObservationsForMeasurementSites, startDateString, endDateString, true, TrafficWeatherAggregator.ExportFormat.BOS, mCompanionProperties.getProperty("ndw.exportFolder"), fileIndex, endFileIndex, now);
+                }
 
             } else if (cmd.hasOption("export")) {
                 String[] arguments = cmd.getOptionValues("export");
@@ -298,15 +333,35 @@ public class CompanionRiskFactors {
                 endDateStringKNMI = formatterWeatherKNMI.format(endDate);
                 System.out.println("Start date KNMI: " + startDateStringKNMI + " - end date KNMI: " + endDateStringKNMI + " (from command line)");
 
+                int numberOfTrafficFilesPerBatch = 1;
+                try {
+                    numberOfTrafficFilesPerBatch = Integer.parseInt(mCompanionProperties.getProperty("ndw.numberOfTrafficSpeedFilesPerBatch")); // A setting to avoid heap space problems by running only a limited number of files at once
+                } catch (Exception ex) {
+                    System.err.println("Property ndw.numberOfTrafficFilesPerBatch not defined so taking one file per batch");
+                }
                 TrafficRetrieverNDW trn = new TrafficRetrieverNDW(sc, mCompanionProperties);
-                // trn.runCurrentMeasurements(ftpUrl);
-                Map<String, List<SiteMeasurement>> currentSpeedMeasurementsForMeasurementsSites = trn.runTrafficNDWSpeed(ndwIdPattern, startDate, endDate);
+                List<String> relevantTrafficSpeedFiles = trn.getRelevantTrafficSpeedFiles(startDate, endDate);
+                System.out.println("Total number of traffic speed files to be processed: " + relevantTrafficSpeedFiles.size());
+                // Run batches to avoid memory problems. Adjust the ndw.numberOfTrafficFilesPerBatch setting in your properties file
+                Instant now = Instant.now();
+                Map<String, List<String>> weatherObservationsForMeasurementSites = new HashMap<>();
+                for (int fileIndex = 0; fileIndex < relevantTrafficSpeedFiles.size(); fileIndex += numberOfTrafficFilesPerBatch) {
+                    int endFileIndex = Math.min(relevantTrafficSpeedFiles.size(), fileIndex + numberOfTrafficFilesPerBatch);
+                    System.out.println("Starting batch from traffic speed file " + fileIndex + " until " + endFileIndex + " (excluding end index)");
+                    // trn.runCurrentMeasurements(ftpUrl);
+                    List<String> batchTrafficSpeedFiles = relevantTrafficSpeedFiles.subList(fileIndex, endFileIndex);
+                    Map<String, List<SiteMeasurement>> currentSpeedMeasurementsForMeasurementsSites = trn.runTrafficNDWSpeed(ndwIdPattern, batchTrafficSpeedFiles);
 
-                WeatherRetrieverKNMI wrk = new WeatherRetrieverKNMI(sc);
-                Map<String, List<String>> weatherObservationsForMeasurementSites = wrk.run(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
+                    // Only need to do this once as it is a rather slow task and invokes the KNMI API
+                    if (fileIndex == 0) {
+                        WeatherRetrieverKNMI wrk = new WeatherRetrieverKNMI(sc);
+                        weatherObservationsForMeasurementSites = wrk.run(ndwIdPattern, startDateStringKNMI, endDateStringKNMI);
+                    }
 
-                TrafficWeatherAggregator twa = new TrafficWeatherAggregator();
-                twa.getWeatherAndTrafficPerMeasurementSite(currentSpeedMeasurementsForMeasurementsSites, weatherObservationsForMeasurementSites, startDateString, endDateString, false, TrafficWeatherAggregator.ExportFormat.HDF5, mCompanionProperties.getProperty("ndw.hdfFolder"));
+                    TrafficWeatherAggregator twa = new TrafficWeatherAggregator();
+                    // Set the export date the same for all batches
+                    twa.exportWeatherAndTrafficPerMeasurementSite(currentSpeedMeasurementsForMeasurementsSites, weatherObservationsForMeasurementSites, startDateString, endDateString, false, TrafficWeatherAggregator.ExportFormat.HDF5, mCompanionProperties.getProperty("ndw.hdfFolder"), fileIndex, endFileIndex, now);
+                }
 
             } else {
                 System.err.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");

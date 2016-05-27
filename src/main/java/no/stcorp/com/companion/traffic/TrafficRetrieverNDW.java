@@ -285,11 +285,10 @@ public class TrafficRetrieverNDW implements Serializable {
      * fifth minute is used
      *
      * @param pNdwIdPattern The pattern the NDW id should match
-     * @param pStartDate    Start date in format yyyyMMddHH
-     * @param pEndDate      End date in format yyyyMMddHH
+     * @param pBatchTrafficSpeedFiles The list of traffic speed files to be ran for this batch
      * @return a map of traffic speed measurements per measurement site
      */
-    public Map<String, List<SiteMeasurement>> runTrafficNDWSpeed(String pNdwIdPattern, Instant pStartDate, Instant pEndDate) {
+    public Map<String, List<SiteMeasurement>> runTrafficNDWSpeed(String pNdwIdPattern, List<String> pBatchTrafficSpeedFiles) {
         Map<String, List<SiteMeasurement>> measurementsPerSite = new HashMap<String, List<SiteMeasurement>>();
 
         String ftpUser = mCompanionProperties.getProperty("ndw.ftp.user");
@@ -300,7 +299,6 @@ public class TrafficRetrieverNDW implements Serializable {
         String localFolder = mCompanionProperties.getProperty("ndw.localFolder");
 
         System.out.println("Obtaining traffic speed");
-        List<String> relevantFiles = getRelevantTrafficSpeedFiles(pStartDate, pEndDate);
         // System.out.println("Relevant files: ");
         // for (String trafficFileName : relevantFiles) {
         //   System.out.println(trafficFileName);
@@ -327,16 +325,16 @@ public class TrafficRetrieverNDW implements Serializable {
 
 //    Utils.printFileDetailsForFolder(Paths.get("/tmp"));
         int counter = 0;
-        int numberOfFiles = relevantFiles.size();
+        int numberOfFiles = pBatchTrafficSpeedFiles.size();
         long startTime = System.currentTimeMillis();
 
         DatabaseManager dbMgr = DatabaseManager.getInstance();
         List<String> ndwIds = dbMgr.getNdwIdsFromNdwIdPattern(pNdwIdPattern);
 
-        System.out.println("Parse all relevant traffic speed measurement files");
+        System.out.println("Parse all relevant traffic speed measurement files for this batch");
         List<SiteMeasurement> allMeasurements = new ArrayList<>();
 
-        for (String trafficFileName : relevantFiles) {
+        for (String trafficFileName : pBatchTrafficSpeedFiles) {
             counter++;
             try {
                 if (!useLocalData) {
@@ -495,7 +493,7 @@ public class TrafficRetrieverNDW implements Serializable {
      * @param pEndDate   End date in format yyyyMMddHH
      * @return A list of files satisfying the date conditions. Note that the filenames include the folder name of the day
      */
-    private List<String> getRelevantTrafficSpeedFiles(Instant pStartDate, Instant pEndDate) {
+    public List<String> getRelevantTrafficSpeedFiles(Instant pStartDate, Instant pEndDate) {
 
         String ftpUser = mCompanionProperties.getProperty("ndw.ftp.user");
         String ftpPassword = mCompanionProperties.getProperty("ndw.ftp.password");

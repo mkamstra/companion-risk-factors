@@ -27,20 +27,28 @@ public class TrafficWeatherAggregator {
     private IHDF5Writer writer;
 
     /**
+     * Get the speed measurements and weather observations per measurement site. They are also stored as plot data and eventually plotted
+     *
      * @param pCurrentSpeedMeasurementsForMeasurementsSites A map of speed measurements per measurement site (key: NDW id)
      * @param pWeatherObservationsForMeasurementSites       A map of weather observations per measurement site (key: NDW id)
      * @param pStartDateString                              Start date in format yyyyMMddHH
      * @param pEndDateString                                End date in format yyyyMMddHH
-     *                                                      Get the speed measurements and weather observations per measurement site. They are also stored as plot data and eventually plotted
+     * @param pPlot                                         Flag indicating whether plots need to be generated or not
+     * @param pExportFormat                                 The format to export (None, HDF5 and BOS)
+     * @param pExportPath                                   The folder to export to
+     * @param pFileStartIndex                               The starting index of the traffic speed files to be used (needed for export naming to avoid overriding existing files)
+     * @param pFileEndIndex                                 The ending index (exclusive) of the traffic speed files to be used (needed for export naming to avoid overriding existing files)
+     * @param pGenerationDate                               The date this export is running
      */
-    public void getWeatherAndTrafficPerMeasurementSite(Map<String, List<SiteMeasurement>> pCurrentSpeedMeasurementsForMeasurementsSites,
-                                                       Map<String, List<String>> pWeatherObservationsForMeasurementSites, String pStartDateString, String pEndDateString,
-                                                       boolean pPlot, ExportFormat pExportFormat, String pExportPath) {
+    public void exportWeatherAndTrafficPerMeasurementSite(Map<String, List<SiteMeasurement>> pCurrentSpeedMeasurementsForMeasurementsSites,
+                                                          Map<String, List<String>> pWeatherObservationsForMeasurementSites, String pStartDateString, String pEndDateString,
+                                                          boolean pPlot, ExportFormat pExportFormat, String pExportPath, int pFileStartIndex, int pFileEndIndex, Instant pGenerationDate) {
 
         if (pExportFormat == ExportFormat.HDF5) {
-            String fileName = pExportPath + "TS_" + pStartDateString + "_" + pEndDateString + ".hdf";
+            DateTimeFormatter fileNameDateFormat = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault()); // the format for the part of the file name
+            String fileName = pExportPath + "TS_" + pStartDateString + "_" + pEndDateString + "_" + pFileStartIndex + "-" + pFileEndIndex + "_" + fileNameDateFormat.format(pGenerationDate) + ".hdf";
             Date date = new Date(System.currentTimeMillis());
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd-HH"); // the format
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd-HH"); // the format for the attribute within the file
             System.out.println("Writing weather and traffic data for selected measurement points at selected time interval: " + fileName);
             writer = HDF5Factory.open(fileName);
             writer.string().setAttr("/", "generation_datetime", sdf.format(date));

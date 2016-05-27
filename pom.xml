@@ -82,8 +82,8 @@
     <scala.version>2.10.4</scala.version>
     <spark.version>1.6.0</spark.version>
     <jhdf5.version>14.12.6</jhdf5.version>
-    <jhdf5.native>macosx</jhdf5.native>
-    <!--<jhdf5.native>linux</jhdf5.native>-->
+    <!--<jhdf5.native>macosx</jhdf5.native>-->
+    <jhdf5.native>linux</jhdf5.native>
     <!--<jhdf5.native>windows</jhdf5.native>-->
   </properties>
   <dependencies>
