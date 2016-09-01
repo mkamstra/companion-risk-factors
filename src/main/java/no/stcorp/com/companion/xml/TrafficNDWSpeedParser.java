@@ -8,6 +8,8 @@ import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.*;
 
 import java.util.*;
+import javax.annotation.Nullable;
+import javax.lang.model.type.NullType;
 import javax.xml.parsers.*;
 
 import org.w3c.dom.*;
@@ -22,12 +24,18 @@ public class TrafficNDWSpeedParser implements Function<String, List<SiteMeasurem
     private final static Logger LOGGER = Logger.getLogger(TrafficNDWSpeedParser.class.getName());
     private static final long serialVersionUID = 3L;
     private DatabaseManager mDbMgr = null;
-    private Map<String, Integer> mMeasurementSiteIds = new HashMap<String, Integer>();
+    private Set<String> mMeasurementSiteIds;
 
     public TrafficNDWSpeedParser() {
         LOGGER.setLevel(Level.FINE);
         mDbMgr = DatabaseManager.getInstance();
         mMeasurementSiteIds = mDbMgr.getAllMeasurementSiteIdsFromDb();
+    }
+
+    public TrafficNDWSpeedParser(float p1_lat, float p1_lon, float p2_lat, float p2_lon) {
+        LOGGER.setLevel(Level.FINE);
+        mDbMgr = DatabaseManager.getInstance();
+        mMeasurementSiteIds = mDbMgr.getLocalMeasurementSiteIdsFromDb(p1_lat, p1_lon, p2_lat, p2_lon);
     }
 
     public List<SiteMeasurement> call(String pXmlString) {
@@ -67,22 +75,11 @@ public class TrafficNDWSpeedParser implements Function<String, List<SiteMeasurem
                     } else {
                         Element siteReferenceElement = (Element) siteReferenceNodes.item(0);
                         String siteReferenceIdString = siteReferenceElement.getAttribute("id");
-                        int siteReferenceDbId = -1;
+
                         LOGGER.finest("&nbsp;&nbsp;&nbsp;&nbsp;site reference id: " + siteReferenceIdString);
-                        if (mMeasurementSiteIds.containsKey(siteReferenceIdString)) {
-                            siteReferenceDbId = mMeasurementSiteIds.get(siteReferenceIdString);
-                        }
-                        if (siteReferenceDbId >= 0) {
-                            LOGGER.finest("&nbsp;&nbsp;Measurement site reference id: " + siteReferenceIdString + ", db id: " + siteReferenceDbId);
-                        } else {
-                            if (!siteReferenceIdString.startsWith("GEO") && !siteReferenceIdString.startsWith("P")
-                                    && !siteReferenceIdString.startsWith("GRT") && !siteReferenceIdString.startsWith("SRR")
-                                    && !siteReferenceIdString.startsWith("SAN") && !siteReferenceIdString.startsWith("BIM")
-                                    && !siteReferenceIdString.startsWith("GBR")) {
-                                // Only interested in highways for now, so no need to print that these points were not found in the database (P = Provinciaal)
-                                LOGGER.severe("&nbsp;&nbsp;Measurement site reference id: " + siteReferenceIdString + " not found in database");
-                            }
-                            continue; // No need to create an element from this
+
+                        if (!mMeasurementSiteIds.contains(siteReferenceIdString)) {  // Skip not selected sites
+                            continue;
                         }
 
                         NodeList timeDefaultNodes = siteMeasurementElement.getElementsByTagName("measurementTimeDefault");

@@ -50,5 +50,12 @@ Note that you can configure the software for your system using the companion.pro
 > `ndw.db.host=192.168.99.100`<br>
 > `ndw.db.port=32768`<br>
 > `ndw.numberOfTrafficSpeedFilesPerBatch=200` <br>
+> `ndw.region.p1.lat=52.057142` <br>
+> `ndw.region.p1.lon=4.334679` <br>
+> `ndw.region.p2.lat=52.333050` <br>
+> `ndw.region.p2.lon=4.784552` <br>
+
+The region option describes two points whose convex hull (a rectangle) will be the region
+of interest, i. e., only measurement sites in this rectangle will be processed.
 
 Note that Spark can generate an insane amount of input making it hard to find your own log messages back. To reduce this you can find the log4j.properties file in the conf directory here and copy it to the conf directory of your Spark installation (e.g. /usr/local/spark-1.6.0-bin-hadoop2.6/conf/)

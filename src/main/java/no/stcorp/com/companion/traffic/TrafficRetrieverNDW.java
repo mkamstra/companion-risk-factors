@@ -297,10 +297,14 @@ public class TrafficRetrieverNDW implements Serializable {
         String ftpFolder = mCompanionProperties.getProperty("ndw.ftp.folder");
         boolean useLocalData = Boolean.parseBoolean(mCompanionProperties.getProperty("ndw.useLocalData"));
         String localFolder = mCompanionProperties.getProperty("ndw.localFolder");
+        float p1_lat = Float.valueOf(mCompanionProperties.getProperty("ndw.region.p1.lat"));
+        float p1_lon = Float.valueOf(mCompanionProperties.getProperty("ndw.region.p1.lon"));
+        float p2_lat = Float.valueOf(mCompanionProperties.getProperty("ndw.region.p2.lat"));
+        float p2_lon = Float.valueOf(mCompanionProperties.getProperty("ndw.region.p2.lon"));
 
         System.out.println("Obtaining traffic speed");
         // System.out.println("Relevant files: ");
-        // for (String trafficFileName : relevantFiles) {
+//         for (String trafficFileName : relevantFiles) {
         //   System.out.println(trafficFileName);
         // }
         // TODO MK: Remove the following lines again as they are just there to reduce the processing time while testing
@@ -329,7 +333,9 @@ public class TrafficRetrieverNDW implements Serializable {
         long startTime = System.currentTimeMillis();
 
         DatabaseManager dbMgr = DatabaseManager.getInstance();
-        List<String> ndwIds = dbMgr.getNdwIdsFromNdwIdPattern(pNdwIdPattern);
+        Set<String> ndwIds = dbMgr.getNdwIdsFromNdwIdPattern(pNdwIdPattern);
+        Set<String> localIds = dbMgr.getLocalMeasurementSiteIdsFromDb(p1_lat, p1_lon, p2_lat, p2_lon);
+        ndwIds.retainAll(localIds);  // Filter by locality
 
         System.out.println("Parse all relevant traffic speed measurement files for this batch");
         List<SiteMeasurement> allMeasurements = new ArrayList<>();
@@ -368,7 +374,7 @@ public class TrafficRetrieverNDW implements Serializable {
                 // Call the ParseTrafficSpeedXml class which is defined in another class to parse the traffic speed data
                 if (gzDataList.size() == 1) {
                     String importedFileText = gzDataList.get(0);
-                    TrafficNDWSpeedParser parser = new TrafficNDWSpeedParser();
+                    TrafficNDWSpeedParser parser = new TrafficNDWSpeedParser(p1_lat, p1_lon, p2_lat, p2_lon);
                     allMeasurements.addAll(parser.call(importedFileText)); // Parse the speed file
                 }
             } catch (Exception ex) {
@@ -430,6 +436,9 @@ public class TrafficRetrieverNDW implements Serializable {
                 // System.out.println("No traffic speed measurements for measurement site: " + ndwId); // Occurs too often so no printing
                 continue; // Next iteration since this measurement site has no speed measurements for the selected time frame
             }
+
+            // TODO Filter per hour
+
             if (measurementsPerSite.containsKey(ndwId)) {
                 // measurementsForSite has been created in such a way that it is not modifyable (like with Arrays.asList()). Therefore
                 // first initialize list and then add elements.

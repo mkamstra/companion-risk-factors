@@ -123,17 +123,38 @@ public class DatabaseManager implements Serializable {
     return ndwTypes;
   }
 
-  public Map<String, Integer> getAllMeasurementSiteIdsFromDb() throws RuntimeException {
-    Map<String, Integer> measurementSiteIds = new HashMap<String, Integer>();
+  public Set<String> getAllMeasurementSiteIdsFromDb() throws RuntimeException {
+    Set<String> measurementSiteIds = new HashSet<>();
   	try {
       getConnection();
       Statement st = mConnection.createStatement();
-      String allMeasurementsSql = "SELECT ndwid, id from measurementsite";
+      String allMeasurementsSql = "SELECT ndwid from measurementsite";
       ResultSet rs = st.executeQuery(allMeasurementsSql);
       while (rs.next()) {
-        String ndwId = rs.getString(1);      
-        Integer dbId = rs.getInt(2);
-        measurementSiteIds.put(ndwId, dbId);
+        String ndwId = rs.getString(1).toLowerCase();
+        measurementSiteIds.add(ndwId);
+      }
+      rs.close();
+      st.close();
+      closeConnection();
+  	} catch (SQLException ex) {
+  	  ex.printStackTrace();
+  	  throw new RuntimeException("Problem getting all measurement site ids from the database;" + ex.getMessage());
+  	}
+    return measurementSiteIds;
+  }
+
+  public Set<String> getLocalMeasurementSiteIdsFromDb(float p1_lat, float p1_lon, float p2_lat, float p2_lon) throws RuntimeException {
+    Set<String> measurementSiteIds = new HashSet<>();
+  	try {
+      getConnection();
+      Statement st = mConnection.createStatement();
+      String sqlString = "SELECT ndwid FROM measurementsite WHERE st_makeline(st_makepoint(%f, %f), st_makepoint(%f, %f)) && location";
+      String localMeasurementsSql =  String.format(sqlString, p1_lat, p1_lon, p2_lat, p2_lon);
+      ResultSet rs = st.executeQuery(localMeasurementsSql);
+      while (rs.next()) {
+        String ndwId = rs.getString(1).toLowerCase();
+        measurementSiteIds.add(ndwId);
       }
       rs.close();
       st.close();
@@ -199,7 +220,7 @@ public class DatabaseManager implements Serializable {
 	      }
 	      String ndwId = ms.getNdwid();
 	      ndwId = ndwId.replaceAll("'", "_");
-	      String name = ms.getName();
+	      String name = ms.getName().toLowerCase();
 	      name = name.replaceAll("'", "_");
         String polygonString = "";
         if (ms.getCoordinates().size() > 1)
@@ -255,7 +276,7 @@ public class DatabaseManager implements Serializable {
           break;
         }
         String name = ws.getName();
-        name = name.replaceAll("'", "_");
+        name = name.replaceAll("'", "_").toLowerCase();
         String insertSql = "INSERT INTO weatherstation VALUES(" + maxId +  ", '" + ws.getKnmiId() + "', '" + name + "', ST_GeomFromText('POINT(" + ws.getLatitude() + " " + ws.getLongitude() + ")', 4326), " + ws.getAltitude() + ")";
         LOGGER.finest(insertSql);
         int rowsAdded = st.executeUpdate(insertSql);
@@ -363,7 +384,7 @@ public class DatabaseManager implements Serializable {
         float lat = rs.getFloat("lat");
         float lon = rs.getFloat("lon");
         float altitude = rs.getFloat("altitude");
-        WeatherStation ws = new WeatherStation(knmiid, name, lat, lon, altitude);
+        WeatherStation ws = new WeatherStation(knmiid, name.toLowerCase(), lat, lon, altitude);
         wsList.add(ws);
       }
       rs.close();
@@ -389,8 +410,8 @@ public class DatabaseManager implements Serializable {
         float lat = rs.getFloat("lat");
         float lon = rs.getFloat("lon");
         MeasurementSite ms = new MeasurementSite();
-        ms.setNdwid(ndwid);
-        ms.setName(name);
+        ms.setNdwid(ndwid.toLowerCase());
+        ms.setName(name.toLowerCase());
         Location loc = new Location(lat, lon, 0.0);
         ms.setLocation(loc);
         msList.add(ms);
@@ -418,8 +439,8 @@ public class DatabaseManager implements Serializable {
         float lat = rs.getFloat("lat");
         float lon = rs.getFloat("lon");
         MeasurementSiteSegment ms = new MeasurementSiteSegment();
-        ms.setNdwid(ndwid);
-        ms.setName(name);
+        ms.setNdwid(ndwid.toLowerCase());
+        ms.setName(name.toLowerCase());
         Location loc = new Location(lat, lon, 0.0);
         ms.setLocation(loc);
         String coordinatesString = rs.getString("coordinates"); // Format: LINESTRING(52.1694602966309 5.5661997795105,52.1673316955566 5.56235980987549)
@@ -466,8 +487,8 @@ public class DatabaseManager implements Serializable {
         float lat = rs.getFloat("lat");
         float lon = rs.getFloat("lon");
         MeasurementSite ms = new MeasurementSite();
-        ms.setNdwid(ndwid);
-        ms.setName(name);
+        ms.setNdwid(ndwid.toLowerCase());
+        ms.setName(name.toLowerCase());
         Location loc = new Location(lat, lon, 0.0);
         ms.setLocation(loc);
         msList.add(ms);
@@ -499,8 +520,8 @@ public class DatabaseManager implements Serializable {
         float lat = rs.getFloat("lat");
         float lon = rs.getFloat("lon");
         MeasurementSite ms = new MeasurementSite();
-        ms.setNdwid(ndwid);
-        ms.setName(name);
+        ms.setNdwid(ndwid.toLowerCase());
+        ms.setName(name.toLowerCase());
         Location loc = new Location(lat, lon, 0.0);
         ms.setLocation(loc);
         msList.add(ms);
@@ -582,8 +603,8 @@ public class DatabaseManager implements Serializable {
    * For a given traffic measurement point (MP) mathcing the NDW id pattern:
    * Get the related weather station (WS) for each MP by the KNMI id
    */
-  public List<String> getNdwIdsFromNdwIdPattern(String pNdwidPattern) {
-    List<String> selectedNdws = new ArrayList<String>();
+  public Set<String> getNdwIdsFromNdwIdPattern(String pNdwidPattern) {
+    Set<String> selectedNdws = new HashSet<>();
     try {
       getConnection();
       Statement st = mConnection.createStatement();
