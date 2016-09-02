@@ -79,23 +79,23 @@ public class TimeSeriesPlotterTest {
     tsp.plot(ndwId, timeStartString, timeEndString, tdc);
   }
 
-  @Test
-  public void HDF5Test() {
-
-    IHDF5Writer writer = HDF5Factory.open("_TestHDF.hdf5");
-
-    float[] myData = {10, 10, 10, 10};
-
-    writer.writeFloatArray("/myData", myData);
-    writer.time().setAttr("/", "generation", System.currentTimeMillis());
-    writer.writeFloatArray("inside_group/myData", myData);
-    writer.close();
-
-    IHDF5SimpleReader reader = HDF5Factory.openForReading("_TestHDF.hdf5");
-
-    float[] readData = reader.readFloatArray("myData");
-    Assert.assertArrayEquals(myData, readData, 0.01f);
-
-  }
+//  @Test
+//  public void HDF5Test() {
+//
+//    IHDF5Writer writer = HDF5Factory.open("_TestHDF.hdf5");
+//
+//    float[] myData = {10, 10, 10, 10};
+//
+//    writer.writeFloatArray("/myData", myData);
+//    writer.time().setAttr("/", "generation", System.currentTimeMillis());
+//    writer.writeFloatArray("inside_group/myData", myData);
+//    writer.close();
+//
+//    IHDF5SimpleReader reader = HDF5Factory.openForReading("_TestHDF.hdf5");
+//
+//    float[] readData = reader.readFloatArray("myData");
+//    Assert.assertArrayEquals(myData, readData, 0.01f);
+//
+//  }
 
 }

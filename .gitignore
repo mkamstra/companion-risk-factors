@@ -252,3 +252,5 @@ run_companion_local.sh
 .idea/
 CompanionWeatherTraffic.iml
 companion.properties.mk
+companion_rf.img
+*.tgz
